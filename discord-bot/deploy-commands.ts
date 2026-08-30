@@ -54,6 +54,26 @@ const commandFolders = fs.readdirSync(foldersPath);
         );
 
         console.log(`Sucesso ao recarregar ${data.length} comandos de aplicativo (/).`);
+
+        // Deploy instantâneo para guild (propagação global pode demorar até 1h)
+        const guildIds = (process.env.GUILD_IDS || '1067841770504859659').split(',').map(s=>s.trim()).filter(Boolean);
+        // Também tenta descobrir guilds do bot via API
+        try {
+            const res = await fetch('https://discord.com/api/v10/users/@me/guilds', { headers: { Authorization: `Bot ${token}` } as any });
+            if (res.ok) {
+                const guilds: any = await res.json();
+                for (const g of guilds) if (!guildIds.includes(g.id)) guildIds.push(g.id);
+            }
+        } catch {}
+
+        for (const gid of guildIds) {
+            try {
+                const gData: any = await rest.put(Routes.applicationGuildCommands(clientId, gid), { body: commands });
+                console.log(`✅ Guild ${gid}: ${gData.length} comandos (instantâneo)`);
+            } catch (e) {
+                console.warn(`⚠️ Falha guild ${gid}:`, (e as Error).message);
+            }
+        }
     } catch (error) {
         console.error(error);
     }
