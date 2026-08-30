@@ -42,3 +42,7 @@ out/
 # Temp
 tmp/
 temp/
+
+# Learning (vontade própria - não versionar, evolui sozinho)
+discord-bot/data/will.json
+discord-bot/data/learning.db

@@ -81,6 +81,19 @@ const commandFolders = fs.readdirSync(foldersPath);
         console.log('[Bot] Conectando ao Discord...');
         await client.login(process.env.DISCORD_TOKEN);
         console.log('[Bot] ✅ Conectado com sucesso!');
+
+        // === Sistema de Aprendizado Autônomo 1h/dia + Vontade Própria ===
+        try {
+            const { startLearningScheduler } = await import('./utils/learning/scheduler');
+            const { WillManager } = await import('./utils/learning/Will');
+            const wm = new WillManager();
+            const will = wm.getCurrent();
+            console.log(`[Bot] 🧠 Will v${will.version} streak=${will.daily_streak} curiosidade=${will.curiosity.slice(0,3).join(', ')}`);
+            startLearningScheduler();
+            console.log('[Bot] 📚 Sistema de aprendizado 1h/dia ativo (NVIDIA + crawler)');
+        } catch (e: any) {
+            console.warn('[Bot] Learning scheduler falhou ao iniciar:', e.message);
+        }
     } catch (error) {
         console.error('[Erro Fatal] Ao inicializar bot:', error);
         process.exit(1);

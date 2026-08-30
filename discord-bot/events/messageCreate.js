@@ -1,6 +1,8 @@
 const { Events } = require('discord.js');
 const simsimiState = require('../simsimiState.js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { chat } = require('../utils/ai/nvidiaClient');
+const { SIMSIMI_SYSTEM } = require('../utils/ai/prompts');
+const { getConfig } = require('../utils/ai/config');
 
 // Evitar spam: armazena timestamp da última mensagem por canal
 const cooldowns = new Map();
@@ -21,7 +23,7 @@ module.exports = {
 				return;
 			}
 
-			// Cooldown de 4 segundos para evitar Rate Limit (429) no plano gratuito
+			// Cooldown de 4 segundos para evitar Rate Limit no NVIDIA
 			const now = Date.now();
 			const lastMsg = cooldowns.get(message.channel.id) || 0;
 			if (now - lastMsg < 4000) {
@@ -38,57 +40,44 @@ module.exports = {
 				console.warn('[SimSimi] Erro ao enviar typing indicator:', e.message);
 			}
 
-			// Configura a IA
-			if (!process.env.GEMINI_API_KEY) {
-				console.error('[SimSimi] GEMINI_API_KEY não configurada');
+			// Configura a IA NVIDIA
+			const cfg = getConfig();
+			if (!cfg.apiKey) {
+				console.error('[SimSimi] NVIDIA_API_KEY não configurada');
 				return;
 			}
 
-			const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-			// Usando gemini-pro que é estável e suportado
-			const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+			// Limita tamanho da mensagem para economizar créditos
+			const userMsg = message.content.slice(0, 300);
 
-			// Personalidade do SimSimi
-			const prompt = `
-				Você é o SimSimi.
-				Sua personalidade é: Ácida, sarcástica, debochada, engraçada e levemente rude.
-				Você usa gírias da internet brasileira (tipo "tankar", "cringe", "mó paz", etc).
-				Suas respostas devem ser CURTAS (máximo 2 frases).
-				Se o usuário falar algo normal, responda com uma piada ou deboche.
-				Se o usuário xingar, responda à altura (mas sem racismo/homofobia/discurso de ódio real).
-				O objetivo é fazer o usuário rir de raiva.
-				
-				Mensagem do usuário: "${message.content}"
-			`;
+			console.log('[SimSimi] Gerando resposta com NVIDIA', cfg.textModel);
+			const response = await chat({
+				model: cfg.textModel,
+				messages: [
+					{ role: 'system', content: SIMSIMI_SYSTEM },
+					{ role: 'user', content: userMsg },
+				],
+				temperature: 0.9,
+				max_tokens: 500,
+			});
 
-			console.log('[SimSimi] Gerando resposta com Gemini...');
-			const result = await model.generateContent(prompt);
-			
-			if (!result || !result.response) {
-				console.error('[SimSimi] Resposta vazia da IA');
-				return;
-			}
-
-			const response = result.response.text();
-			
 			if (!response || response.trim().length === 0) {
 				console.error('[SimSimi] Texto de resposta vazio');
 				return;
 			}
 
-			console.log(`[SimSimi] Resposta: "${response.substring(0, 50)}..."`);
-			await message.reply(response);
+			console.log(`[SimSimi] Resposta: "${response.substring(0, 80)}..."`);
+			await message.reply(response.slice(0, 1900));
 
 		} catch (error) {
-			// Rate limit (429) é esperado e não deve logar
+			// Rate limit (429) é esperado
 			if (error.message && error.message.includes('429')) {
-				console.warn('[SimSimi] Rate limit atingido, aguardando...');
+				console.warn('[SimSimi] Rate limit NVIDIA atingido, aguardando...');
 				return;
 			}
 			
-			// Outros erros de modelo também são comuns
-			if (error.message && error.message.includes('not found')) {
-				console.warn('[SimSimi] Modelo não encontrado, talvez API key inválida');
+			if (error.status === 401 || error.status === 403) {
+				console.warn('[SimSimi] NVIDIA auth falhou (401/403) — verifique NVIDIA_API_KEY');
 				return;
 			}
 

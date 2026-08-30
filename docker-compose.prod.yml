@@ -1,0 +1,18 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: L9Weakness
+    restart: unless-stopped
+    env_file:
+      - discord-bot/.env
+    volumes:
+      - ./discord-bot/data:/app/data
+      - ./discord-bot/logs:/app/logs
+    # Para voice, precisa de rede host? Mantém bridge por padrão
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { chat } = require('../../utils/ai/nvidiaClient');
+const { buildTimeParserPrompt } = require('../../utils/ai/prompts');
+const { getConfig } = require('../../utils/ai/config');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -28,7 +30,7 @@ module.exports = {
 
 	            let timeLimitMs = 0;
 	    
-	            // 1. Tentar parser local via Regex (Muito mais rápido e economiza API)
+	            // 1. Tentar parser local via Regex (Muito mais rápido e economiza créditos NVIDIA)
 	            const regexHoras = /(\d+)\s*(h|hora|horas)/i;
 	            const regexMinutos = /(\d+)\s*(m|min|minuto|minutos)/i;
 	            
@@ -40,28 +42,33 @@ module.exports = {
 	                if (matchMinutos) timeLimitMs += parseInt(matchMinutos[1]) * 60000;
 	                console.log(`[LimparUsuario] Tempo parse via Regex: ${timeLimitMs}ms`);
 	            } else {
-	                // 2. Fallback para IA se o regex falhar (ex: "o tempo de um filme")
-	                try {
-	                    console.log('[LimparUsuario] Tentando parse via IA...');
-	                    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-	                    const model = genAI.getGenerativeModel({ model: "gemini-pro" }); // Modelo estável
-	    
-	                    const prompt = `
-	                        Converta o tempo: "${tempoTexto}" para MILISSEGUNDOS.
-	                        Retorne APENAS o número. Exemplo: "10 min" -> 600000.
-	                        Se não entender, retorne 3600000.
-	                    `;
-	    
-	                    const result = await model.generateContent(prompt);
-	                    const responseText = result.response.text().trim();
-	                    timeLimitMs = parseInt(responseText.replace(/[^0-9]/g, ''));
-	                    console.log(`[LimparUsuario] Tempo parse via IA: ${timeLimitMs}ms`);
-	                } catch (error) {
-	                    console.error("[LimparUsuario] Erro na IA de tempo:", error.message);
-	                    // Se a IA falhar, assume 1 hora por segurança
-	                    timeLimitMs = 3600000; 
-	                    await interaction.followUp({ content: '⚠️ Erro ao interpretar o tempo com IA. Assumindo 1 hora.', flags: 64 });
-	                }
+	                // 2. Fallback para NVIDIA se o regex falhar (ex: "o tempo de um filme")
+					const cfg = getConfig();
+					if (!cfg.apiKey) {
+						console.warn('[LimparUsuario] NVIDIA_API_KEY não configurada, assumindo 1h');
+						timeLimitMs = 3600000;
+						await interaction.followUp({ content: '⚠️ NVIDIA_API_KEY não configurada. Assumindo 1 hora.', flags: 64 });
+					} else {
+						try {
+							console.log('[LimparUsuario] Tentando parse via NVIDIA', cfg.textModel);
+							const prompt = buildTimeParserPrompt(tempoTexto);
+							const responseText = await chat({
+								model: cfg.textModel,
+								messages: [{ role: 'user', content: prompt }],
+								temperature: 0,
+								max_tokens: 500,
+							});
+							// Extrai último número (evita capturar reasoning com exemplo 600000)
+							const nums = responseText.match(/\d+/g);
+							timeLimitMs = nums ? parseInt(nums[nums.length - 1]) : NaN;
+							console.log(`[LimparUsuario] Tempo parse via NVIDIA: ${timeLimitMs}ms (raw: ${responseText})`);
+						} catch (error) {
+							console.error("[LimparUsuario] Erro na IA NVIDIA de tempo:", error.message);
+							// Se a IA falhar, assume 1 hora por segurança
+							timeLimitMs = 3600000; 
+							await interaction.followUp({ content: '⚠️ Erro ao interpretar o tempo com NVIDIA. Assumindo 1 hora.', flags: 64 });
+						}
+					}
 	            }
 	    
 	            if (!timeLimitMs || isNaN(timeLimitMs) || timeLimitMs <= 0) {
