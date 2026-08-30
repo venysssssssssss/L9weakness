@@ -1,0 +1,30 @@
+{
+  "name": "super-discord-bot",
+  "version": "1.0.0",
+  "description": "A 24/7 Discord Bot",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "deploy": "ts-node deploy-commands.ts",
+    "setup": "bash setup_typescript.sh"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "better-sqlite3": "^12.6.0",
+    "canvas": "^3.2.1",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^3.3.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^20.11.16",
+    "@types/uuid": "^9.0.8"
+  },
+  "engines": {
+    "node": ">=16.9.0"
+  }
+}
