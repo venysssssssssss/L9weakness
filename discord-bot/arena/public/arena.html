@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arena MTG</title>
+<style>
+:root{--cw:104px;--ch:145px;--gold:#c8a24a;--felt:#0e2a1c;--felt2:#123522}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 50% -10%,#1d4a30,var(--felt) 60%,#08160f);color:#f2ead6;font-family:Georgia,'Times New Roman',serif;min-height:100vh}
+#hud{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,0,0,.55);border-bottom:2px solid var(--gold);position:sticky;top:0;z-index:50}
+#hud h1{font-size:18px;margin:0;color:var(--gold);letter-spacing:1px}
+#turnBadge{background:#000a;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;font-size:14px}
+#hud .btns{display:flex;flex-wrap:wrap;gap:6px}
+button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--gold);background:#2a1f08;color:#ffe9a8;padding:7px 11px;font-size:14px}
+button:hover{background:#4a360d}button:disabled{opacity:.4;cursor:default}
+button.danger{border-color:#a33;background:#3a0d0d;color:#ffb0b0}
+#status{text-align:center;padding:6px;font-size:14px;background:#3a2c05;display:none}
+#status.show{display:block}#status.err{background:#5a1010}
+main{display:grid;grid-template-columns:300px 1fr 260px;gap:10px;padding:10px;max-width:1500px;margin:0 auto}
+@media(max-width:1000px){main{grid-template-columns:1fr}#inspector{order:2}#side{order:3}}
+#inspector{background:rgba(0,0,0,.6);border:1px solid var(--gold);border-radius:12px;padding:10px;align-self:start;position:sticky;top:70px}
+#inspector img{width:100%;border-radius:8px;display:block;background:#222}
+#inspector h2{font-size:17px;margin:8px 0 2px;color:var(--gold)}
+#inspector .tp{font-size:13px;opacity:.85}#inspector .tx{font-size:14px;white-space:pre-wrap;margin-top:6px}
+#inspector .pt{text-align:right;font-weight:bold}
+.zone h3{margin:10px 4px 6px;font-size:13px;text-transform:uppercase;letter-spacing:1px;opacity:.8}
+.cards{display:flex;flex-wrap:wrap;gap:8px;min-height:calc(var(--ch) + 8px)}
+#selfHand .cards{flex-wrap:nowrap;justify-content:center}
+#selfHand .card + .card{margin-left:calc(var(--cw) * -.55)}
+#selfHand .card:hover{margin-left:0;z-index:60}
+.card{position:relative;width:var(--cw);flex:0 0 auto}
+.card img{width:var(--cw);height:var(--ch);object-fit:cover;border-radius:7px;display:block;background:#1c1c1c;box-shadow:0 4px 10px #000c;transition:transform .12s}
+.card:hover img,.card:focus img{transform:scale(1.9);z-index:55;position:relative}
+.card.opp:hover img{transform-origin:top center}.card.me:hover img{transform-origin:bottom center}
+.card.tapped img{transform:rotate(12deg);filter:saturate(.7) brightness(.85)}
+.card.tapped:hover img{transform:rotate(12deg) scale(1.9)}
+.card .ptbadge{position:absolute;right:2px;bottom:2px;background:#fffe;border:1px solid #333;border-radius:6px;color:#000;font-size:12px;font-weight:bold;padding:0 5px}
+.card .sick{position:absolute;left:2px;top:2px;background:#0ff;border-radius:6px;color:#000;font-size:11px;font-weight:bold;padding:0 5px}
+.card .kill{position:absolute;left:-6px;top:-8px;display:none;background:#600;color:#fff;border:1px solid #f88;border-radius:50%;width:22px;height:22px;font-size:13px;line-height:1;padding:0}
+.card:hover .kill,.card:focus .kill{display:block}
+.cardback{width:var(--cw);height:var(--ch);border-radius:7px;background:repeating-linear-gradient(45deg,#3a2a08,#3a2a08 8px,#241a04 8px,#241a04 16px);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:26px}
+.playerbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:rgba(0,0,0,.55);border:1px solid var(--gold);border-radius:12px;padding:8px 12px}
+.playerbar .life{font-size:22px;color:#ff9d9d}.playerbar .mana{font-size:14px}
+#side{background:rgba(0,0,0,.6);border:1px solid var(--gold);border-radius:12px;padding:10px;align-self:start;position:sticky;top:70px}
+#lifeCtl{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+#log{list-style:none;margin:0;padding:0;max-height:50vh;overflow:auto;font-size:13px}
+#log li{border-bottom:1px solid #ffffff18;padding:3px 0}
+#diceFlash{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:99}
+#diceFlash span{font-size:90px;background:#000d;border:3px solid var(--gold);border-radius:20px;padding:10px 40px;animation:pop .9s}
+@keyframes pop{0%{transform:scale(.4);opacity:0}25%{transform:scale(1.1);opacity:1}80%{opacity:1}100%{opacity:0}}
+#loading{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:98;font-size:20px}
+</style>
+</head>
+<body>
+<div id="loading">🃏 Embaralhando decks…</div>
+<header id="hud">
+  <div><h1>⚔️ ARENA MTG</h1><span id="turnBadge">conectando…</span></div>
+  <div class="btns">
+    <button id="bDraw" title="Comprar carta">🂠 Comprar</button>
+    <button id="bUntap" title="Desvirar tudo">☀️ Desvirar</button>
+    <button id="bPhase" title="Avançar fase">⏭️ Fase</button>
+    <button id="bD20" title="Rolar d20">🎲 d20</button>
+    <button id="bD6" title="Rolar d6">🎲 d6</button>
+    <button id="bCoin" title="Cara ou coroa">🪙 Moeda</button>
+  </div>
+</header>
+<div id="status"></div>
+<main>
+  <aside id="inspector"><img id="inspImg" alt="Carta ampliada"><h2 id="inspName">Passe o mouse numa carta</h2><div class="tp" id="inspType"></div><div class="tx" id="inspText"></div><div class="pt" id="inspPT"></div></aside>
+  <section id="board">
+    <div class="playerbar" id="oppBar"></div>
+    <div class="zone"><h3>Mão do oponente</h3><div class="cards" id="oppHand"></div></div>
+    <div class="zone"><h3>Campo do oponente — passe o mouse para ler</h3><div class="cards" id="oppField"></div></div>
+    <div class="zone"><h3>Terrenos do oponente</h3><div class="cards" id="oppLands"></div></div>
+    <hr style="border-color:var(--gold)">
+    <div class="playerbar" id="selfBar"></div>
+    <div class="zone"><h3>Seus terrenos (clique = virar)</h3><div class="cards" id="selfLands"></div></div>
+    <div class="zone"><h3>Seu campo (clique = virar, ✕ = destruir)</h3><div class="cards" id="selfField"></div></div>
+    <div class="zone" id="selfHand"><h3>Sua mão (clique = jogar)</h3><div class="cards" id="selfHandCards"></div></div>
+  </section>
+  <aside id="side">
+    <h3 style="margin-top:0">❤️ Sua vida</h3>
+    <div id="lifeCtl"><button data-d="-5">−5</button><button data-d="-1">−1</button><button data-d="1">+1</button><button data-d="5">+5</button></div>
+    <h3>📜 Mesa</h3>
+    <ul id="log"></ul>
+  </aside>
+</main>
+<div id="diceFlash"><span id="diceVal"></span></div>
+<script>
+// ponytail: html é estático por sala; o js descobre o roomId da própria URL.
+(function(){var m=location.pathname.match(/\/arena\/([^/?#]+)/);var s=document.createElement('script');s.src=m?'/arena/'+m[1]+'/assets/arena.js':'/arena/x/assets/arena.js';s.defer=true;document.body.appendChild(s);})();
+</script>
+</body>
+</html>

@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     env_file:
       - discord-bot/.env
+    ports:
+      - "${ARENA_PORT:-3000}:${ARENA_PORT:-3000}" # mesa web da Arena MTG
     volumes:
       - ./discord-bot/data:/app/data
       - ./discord-bot/logs:/app/logs

@@ -32,12 +32,14 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3",
     "uuid": "^9.0.1",
+    "ws": "^8.21.3",
     "yt-dlp-exec": "^1.0.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",
     "@types/node": "^20.11.16",
-    "@types/uuid": "^9.0.8"
+    "@types/uuid": "^9.0.8",
+    "@types/ws": "^8.18.1"
   },
   "engines": {
     "node": ">=16.9.0"
