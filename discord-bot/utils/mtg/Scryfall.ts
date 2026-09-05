@@ -64,7 +64,8 @@ class ScryfallService {
                     return cardData;
                 }
                 if (response.status === 429 && attempt < 2) {
-                    const retry = Number(response.headers.get('Retry-After') || '1') * 1000;
+                    const raw = Number(response.headers.get('Retry-After') || '1') * 1000;
+                    const retry = Math.min(2000, raw); // ponytail: capa em 2s, 60s da Scryfall trava o warm
                     console.warn(`Scryfall 429 ${name}, retry em ${retry}ms`);
                     await new Promise(r => setTimeout(r, retry + 200));
                     continue;
