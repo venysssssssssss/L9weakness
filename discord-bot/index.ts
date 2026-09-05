@@ -82,6 +82,15 @@ const commandFolders = fs.readdirSync(foldersPath);
         await client.login(process.env.DISCORD_TOKEN);
         console.log('[Bot] ✅ Conectado com sucesso!');
 
+        // === Arena MTG (mesa web 24/7 p/ os links do /arena) ===
+        try {
+            const { ensureArenaServer, arenaPort } = await import('./arena/server');
+            ensureArenaServer();
+            console.log(`[Bot] 🃏 Arena MTG ouvindo na porta ${arenaPort()}`);
+        } catch (e: any) {
+            console.warn('[Bot] Arena falhou ao iniciar:', e.message);
+        }
+
         // === Sistema de Aprendizado Autônomo 1h/dia + Vontade Própria ===
         try {
             const { startLearningScheduler } = await import('./utils/learning/scheduler');
