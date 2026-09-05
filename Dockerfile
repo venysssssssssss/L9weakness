@@ -2,7 +2,7 @@ FROM node:20-bookworm-slim
 
 # System deps for canvas, opus, ffmpeg, better-sqlite3
 RUN apt-get update && apt-get install -y \
-  python3 make g++ \
+  python3 make g++ python-is-python3 \
   libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev librsvg2-dev \
   libopus-dev ffmpeg \
   && rm -rf /var/lib/apt/lists/*
