@@ -49,23 +49,30 @@ class ScryfallService {
                 return cached;
             }
 
-            // 2. Fetch from API
+            // 2. Fetch from API (com retry p/ 429)
             console.log(`[API Fetch] ${name}`);
             const url = `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`;
             
-            const response = await fetch(url);
-            if (!response.ok) {
-                console.warn(`Scryfall API Warning: ${response.statusText} for card ${name}`);
+            for (let attempt = 0; attempt < 3; attempt++) {
+                const response = await fetch(url, { headers: { 'User-Agent': 'L9Weakness/1.0' } as any });
+                if (response.ok) {
+                    const data = (await response.json()) as ScryfallCardResponse;
+                    const cardData = this._transformData(data);
+                    try { this.insertCardStmt.run(cardData); } catch (e) { console.warn('[Scryfall] falha ao cachear', name, e); }
+                    // ponytail: 120ms entre fetches p/ respeitar 10/s da Scryfall (evita 429)
+                    await new Promise(r => setTimeout(r, 120));
+                    return cardData;
+                }
+                if (response.status === 429 && attempt < 2) {
+                    const retry = Number(response.headers.get('Retry-After') || '1') * 1000;
+                    console.warn(`Scryfall 429 ${name}, retry em ${retry}ms`);
+                    await new Promise(r => setTimeout(r, retry + 200));
+                    continue;
+                }
+                console.warn(`Scryfall API Warning: ${response.status} ${response.statusText} for card ${name}`);
                 return null;
             }
-            
-            const data = (await response.json()) as ScryfallCardResponse;
-            
-            // 3. Process and Save
-            const cardData = this._transformData(data);
-            this.insertCardStmt.run(cardData);
-            
-            return cardData;
+            return null;
         } catch (error) {
             console.error(`Failed to fetch card ${name}:`, error);
             return null;

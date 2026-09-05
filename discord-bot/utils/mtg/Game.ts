@@ -103,18 +103,41 @@ export class Game {
         const deckList = Decks[deckName] || Decks["Red Aggro"];
         
         player.library = [];
-        // Sequential loading might be slow if not cached, but safer for API limits
+        // ponytail: placeholder garante grimório nunca vazio mesmo se Scryfall falhar/429
+        const placeholder = (name: string): import('./types').DbCard => {
+            const isLand = ['Mountain','Forest','Island','Swamp','Plains'].includes(name);
+            const mana: Record<string,string> = { Mountain:'R', Forest:'G', Island:'U', Swamp:'B', Plains:'W' };
+            return {
+                id: `placeholder-${name}`,
+                name,
+                mana_cost: isLand ? '' : '',
+                type_line: isLand ? `Basic Land — ${name}` : 'Placeholder',
+                oracle_text: isLand ? `{T}: Add {${mana[name] || 'C'}}.` : `Placeholder para ${name} (Scryfall offline).`,
+                image_uri: `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}&format=image&version=large`,
+                power: isLand ? undefined : '2',
+                toughness: isLand ? undefined : '2',
+            };
+        };
         for (const cardName of deckList) {
             try {
                 const data = await ScryfallService.getCard(cardName);
-                if (data) {
+                if (data && data.image_uri) {
                     player.library.push(new Card(data, userId));
+                } else {
+                    if (!data) console.warn(`[MTG] Scryfall miss ${cardName}, usando placeholder`);
+                    else console.warn(`[MTG] Scryfall sem imagem ${cardName}, usando placeholder`);
+                    player.library.push(new Card(placeholder(cardName), userId));
                 }
             } catch (e) {
                 console.error(`Error loading card ${cardName}:`, e);
+                player.library.push(new Card(placeholder(cardName), userId));
             }
         }
         this.shuffle(player.library);
+        console.log(`[MTG] Deck ${deckName} p/ ${userId}: ${player.library.length}/${deckList.length} cartas`);
+        if (player.library.length !== deckList.length) {
+            console.error(`[MTG] ERRO grimório incompleto ${deckName}: ${player.library.length}/${deckList.length}`);
+        }
     }
 
     shuffle(array: any[]) {

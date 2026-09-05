@@ -87,6 +87,19 @@ const commandFolders = fs.readdirSync(foldersPath);
             const { ensureArenaServer, arenaPort } = await import('./arena/server');
             ensureArenaServer();
             console.log(`[Bot] 🃏 Arena MTG ouvindo na porta ${arenaPort()}`);
+            // aquece cache Scryfall em background para os 8 decks não ficarem vazios na primeira arena
+            void (async () => {
+                try {
+                    const { Decks } = await import('./utils/mtg/Game');
+                    const Scryfall = (await import('./utils/mtg/Scryfall')).default;
+                    const uniq = [...new Set(Object.values(Decks).flat())] as string[];
+                    console.log(`[MTG] Aquecendo cache Scryfall: ${uniq.length} cartas únicas...`);
+                    for (const n of uniq) {
+                        try { await Scryfall.getCard(n); } catch {}
+                    }
+                    console.log('[MTG] Cache aquecido.');
+                } catch (e) { console.warn('[MTG] falha ao aquecer cache', e); }
+            })();
         } catch (e: any) {
             console.warn('[Bot] Arena falhou ao iniciar:', e.message);
         }
