@@ -24,6 +24,9 @@ export interface Player {
     lands: CardInstance[];
     exile: CardInstance[];
     manaPool: ManaPool;
+    kept: boolean;
+    mulliganCount: number;
+    landsPlayedThisTurn: number;
 }
 
 export interface ManaPool {
@@ -41,4 +44,7 @@ export interface CardInstance extends DbCard {
     tapped: boolean;
     summoningSickness: boolean;
     counters: number;
+    damageMarked: number;
+    powerBonus: number;
+    toughnessBonus: number;
 }

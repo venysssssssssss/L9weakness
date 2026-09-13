@@ -141,6 +141,12 @@ export function ensureArenaServer(): { port: number } {
                     if (s.readyState === WebSocket.OPEN) s.send(line);
                 }
             }
+            for (const event of r.events ?? []) {
+                const line = JSON.stringify({ t: 'event', ...event });
+                for (const s of roomSockets(roomId)) {
+                    if (s.readyState === WebSocket.OPEN) s.send(line);
+                }
+            }
             broadcastState(roomId);
         });
         const drop = () => {

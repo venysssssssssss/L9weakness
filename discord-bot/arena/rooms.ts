@@ -1,6 +1,6 @@
 import { randomInt, randomUUID } from 'crypto';
 import type { User } from 'discord.js';
-import { Game, Decks } from '../utils/mtg';
+import { Game, Decks, GameEvent } from '../utils/mtg';
 import type { CardInstance } from '../utils/mtg';
 
 export type DeckName = keyof typeof Decks;
@@ -50,8 +50,8 @@ const dto = (c: CardInstance): CardDTO => ({
     mana_cost: c.mana_cost,
     type_line: c.type_line,
     oracle_text: c.oracle_text,
-    power: c.power,
-    toughness: c.toughness,
+    power: c.power ? String(Number(c.power) + (c.powerBonus ?? 0)) : c.power,
+    toughness: c.toughness ? String(Number(c.toughness) + (c.toughnessBonus ?? 0)) : c.toughness,
     image_uri: c.image_uri,
     tapped: c.tapped,
     summoningSickness: c.summoningSickness,
@@ -144,26 +144,17 @@ export function snapshot(room: Room, viewerId: string) {
         turn: g.turn,
         phase: g.phase,
         active: g.activePlayerId,
-        you: { ...pub(viewerId), hand: me.hand.map(dto), handCount: me.hand.length },
+        priority: g.priorityPlayerId,
+        winner: g.winnerId,
+        stack: g.stack.map((item) => ({ id: item.id, card: dto(item.card), controllerId: item.controllerId, effect: item.effect, targetId: item.targetId })),
+        combat: g.combat,
+        you: { ...pub(viewerId), hand: me.hand.map(dto), handCount: me.hand.length, kept: me.kept, mulliganCount: me.mulliganCount },
         opp: { ...pub(oppId), handCount: opp.hand.length },
         log: room.log.slice(-30),
     };
 }
 
-export type ActionResult = { ok: true; dice?: DiceEvent } | { ok: false; error: string };
-
-const clampInt = (v: unknown, min: number, max: number, fallback: number): number => {
-    const n = typeof v === 'number' ? Math.floor(v) : parseInt(String(v ?? ''), 10);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.min(max, Math.max(min, n));
-};
-
-function findName(room: Room, playerId: string, instanceId: string): string {
-    const p = room.game.players[playerId];
-    if (!p) return 'carta';
-    const c = [...p.hand, ...p.battlefield, ...p.lands].find((x) => x.instanceId === instanceId);
-    return c?.name ?? 'carta';
-}
+export type ActionResult = { ok: true; dice?: DiceEvent; events?: GameEvent[] } | { ok: false; error: string };
 
 export function rollDice(kind: DiceKind): number | string {
     if (kind === 'd20') return randomInt(1, 21);
@@ -179,62 +170,81 @@ export function applyAction(room: Room, playerId: string, msg: any): ActionResul
 
     const t = msg?.t;
     if (typeof t !== 'string') return { ok: false, error: 'ação inválida' };
-    if (['play', 'tap', 'destroy', 'draw', 'phase'].includes(t) && !room.ready) {
+    if (!['life', 'dice'].includes(t) && !room.ready) {
         return { ok: false, error: 'deck ainda carregando…' };
     }
+    if (g.phase === 'game-over' && !['dice'].includes(t)) return { ok: false, error: 'partida encerrada' };
 
     switch (t) {
         case 'play': {
             if (typeof msg.card !== 'string') return { ok: false, error: 'carta inválida' };
-            const c = g.playCard(playerId, msg.card);
+            if (g.priorityPlayerId !== playerId || g.activePlayerId !== playerId) return { ok: false, error: 'aguarde sua prioridade' };
+            const handCard = g.findCard(playerId, msg.card, ['hand']);
+            if (!handCard) return { ok: false, error: 'carta inválida' };
+            const c = /land/i.test(handCard.type_line)
+                ? (g.phase === 'main1' || g.phase === 'main2' ? g.playLand(playerId, msg.card) : null)
+                : g.castSpell(playerId, msg.card)?.card ?? null;
             if (!c) return { ok: false, error: 'carta inválida' };
             pushLog(room, `${playerName(room, playerId)} jogou ${c.name}`);
             return { ok: true };
         }
         case 'tap': {
             if (typeof msg.card !== 'string') return { ok: false, error: 'carta inválida' };
-            const name = findName(room, playerId, msg.card);
-            if (!g.tapCard(playerId, msg.card)) return { ok: false, error: 'carta inválida' };
+            if (g.priorityPlayerId !== playerId || (g.phase !== 'main1' && g.phase !== 'main2')) return { ok: false, error: 'não pode virar terreno agora' };
+            const card = g.findCard(playerId, msg.card, ['lands']);
+            const name = card?.name ?? 'carta';
+            if (!g.tapForMana(playerId, msg.card)) return { ok: false, error: 'carta inválida' };
             pushLog(room, `${playerName(room, playerId)} virou ${name}`);
-            return { ok: true };
-        }
-        case 'destroy': {
-            if (typeof msg.card !== 'string') return { ok: false, error: 'carta inválida' };
-            const name = findName(room, playerId, msg.card);
-            if (!g.destroyCard(playerId, msg.card)) return { ok: false, error: 'carta inválida' };
-            pushLog(room, `${playerName(room, playerId)} destruiu ${name}`);
-            return { ok: true };
-        }
-        case 'draw': {
-            const n = clampInt(msg.n ?? 1, 1, 7, 1);
-            if (!g.draw(playerId, n)) return { ok: false, error: 'grimório vazio' };
-            pushLog(room, `${playerName(room, playerId)} comprou ${n}`);
-            return { ok: true };
-        }
-        case 'untap': {
-            g.untapAll(playerId);
-            pushLog(room, `${playerName(room, playerId)} desvirou tudo`);
-            return { ok: true };
+            return { ok: true, events: [{ type: 'tap', cardId: msg.card, playerId, text: `${name} gerou mana` }] };
         }
         case 'phase': {
-            if (g.activePlayerId !== playerId) return { ok: false, error: 'só o jogador ativo passa de fase' };
+            if (g.activePlayerId !== playerId || g.priorityPlayerId !== playerId || g.stack.length) return { ok: false, error: 'resolva a fila antes de passar de fase' };
             if (g.phase === 'end') g.activePlayerId = otherId(room, playerId); // novo ativo compra/desvira
             g.nextPhase();
             pushLog(room, `Fase: ${g.phase} (turno ${g.turn}, ativo: ${playerName(room, g.activePlayerId)})`);
+            return { ok: true, events: [{ type: 'phase', playerId: g.activePlayerId, text: `Fase: ${g.phase}` }] };
+        }
+        case 'keep': {
+            if (!g.keep(playerId)) return { ok: false, error: 'não pode manter esta mão agora' };
+            pushLog(room, `${playerName(room, playerId)} manteve a mão`);
             return { ok: true };
         }
-        case 'life': {
-            if (msg.set !== undefined) {
-                const v = Number(msg.set);
-                if (!Number.isInteger(v) || v < 0 || v > 99) return { ok: false, error: 'valor inválido' };
-                me.life = v;
-            } else if (msg.delta !== undefined) {
-                const d = Number(msg.delta);
-                if (!Number.isInteger(d) || d === 0 || Math.abs(d) > 20) return { ok: false, error: 'valor inválido' };
-                me.life = Math.min(999, Math.max(-99, me.life + d));
-            } else return { ok: false, error: 'valor inválido' };
-            pushLog(room, `Vida de ${playerName(room, playerId)}: ${me.life}`);
+        case 'mulligan': {
+            if (!g.mulligan(playerId)) return { ok: false, error: 'não pode trocar esta mão agora' };
+            pushLog(room, `${playerName(room, playerId)} trocou a mão`);
             return { ok: true };
+        }
+        case 'cast': {
+            if (typeof msg.card !== 'string' || (msg.target !== undefined && typeof msg.target !== 'string')) return { ok: false, error: 'magia inválida' };
+            if (g.priorityPlayerId !== playerId) return { ok: false, error: 'aguarde sua prioridade' };
+            const item = g.castSpell(playerId, msg.card, msg.target);
+            if (!item) return { ok: false, error: 'mana insuficiente ou magia inválida' };
+            pushLog(room, `${playerName(room, playerId)} colocou ${item.card.name} na fila`);
+            return { ok: true, events: [{ type: 'cast', cardId: item.card.instanceId, playerId, text: `${item.card.name} entrou na fila` }] };
+        }
+        case 'pass': {
+            const events = g.passPriority(playerId);
+            if (!events) return { ok: false, error: 'não é sua prioridade' };
+            events.forEach((event) => pushLog(room, event.text));
+            return { ok: true, events };
+        }
+        case 'attackers': {
+            if (!Array.isArray(msg.cards)) return { ok: false, error: 'ataque inválido' };
+            if (!g.declareAttackers(playerId, msg.cards)) return { ok: false, error: 'atacantes inválidos' };
+            pushLog(room, `${playerName(room, playerId)} declarou ataque`);
+            return { ok: true, events: [{ type: 'attack', playerId, text: 'Ataque declarado' }] };
+        }
+        case 'blockers': {
+            const events = g.declareBlockers(playerId, msg.assignments);
+            if (!events) return { ok: false, error: 'bloqueadores inválidos' };
+            events.forEach((event) => pushLog(room, event.text));
+            return { ok: true, events };
+        }
+        case 'concede': {
+            g.winnerId = otherId(room, playerId);
+            g.phase = 'game-over';
+            pushLog(room, `${playerName(room, playerId)} concedeu`);
+            return { ok: true, events: [{ type: 'win', playerId: g.winnerId, text: `${playerName(room, g.winnerId)} venceu` }] };
         }
         case 'dice': {
             if (msg.kind !== 'd20' && msg.kind !== 'd6' && msg.kind !== 'coin') return { ok: false, error: 'dado inválido' };

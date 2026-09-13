@@ -66,8 +66,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
             try {
                 await room.game.loadDeck(room.hostId, hostDeck);
                 await room.game.loadDeck(room.guestId, guestDeck);
-                room.game.draw(room.hostId, 7);
-                room.game.draw(room.guestId, 7);
+                room.game.startMatch();
                 room.ready = true;
                 pushLog(room, `Decks prontos — ${host.username} começa!`);
             } catch (e) {

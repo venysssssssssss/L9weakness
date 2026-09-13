@@ -16,6 +16,9 @@ export class Card implements CardInstance {
     tapped: boolean;
     summoningSickness: boolean;
     counters: number;
+    damageMarked: number;
+    powerBonus: number;
+    toughnessBonus: number;
 
     constructor(data: DbCard, ownerId: string) {
         this.id = data.id;
@@ -32,5 +35,8 @@ export class Card implements CardInstance {
         this.tapped = false;
         this.summoningSickness = true;
         this.counters = 0;
+        this.damageMarked = 0;
+        this.powerBonus = 0;
+        this.toughnessBonus = 0;
     }
 }

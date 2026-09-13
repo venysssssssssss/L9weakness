@@ -3,91 +3,161 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Arena MTG</title>
+<title>Arena MTG — mesa ao vivo</title>
 <style>
-:root{--cw:104px;--ch:145px;--gold:#c8a24a;--felt:#0e2a1c;--felt2:#123522}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 50% -10%,#1d4a30,var(--felt) 60%,#08160f);color:#f2ead6;font-family:Georgia,'Times New Roman',serif;min-height:100vh}
-#hud{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(0,0,0,.55);border-bottom:2px solid var(--gold);position:sticky;top:0;z-index:50}
-#hud h1{font-size:18px;margin:0;color:var(--gold);letter-spacing:1px}
-#turnBadge{background:#000a;border:1px solid var(--gold);border-radius:20px;padding:4px 12px;font-size:14px}
-#hud .btns{display:flex;flex-wrap:wrap;gap:6px}
-button{font-family:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--gold);background:#2a1f08;color:#ffe9a8;padding:7px 11px;font-size:14px}
-button:hover{background:#4a360d}button:disabled{opacity:.4;cursor:default}
-button.danger{border-color:#a33;background:#3a0d0d;color:#ffb0b0}
-#status{text-align:center;padding:6px;font-size:14px;background:#3a2c05;display:none}
-#status.show{display:block}#status.err{background:#5a1010}
-main{display:grid;grid-template-columns:300px 1fr 260px;gap:10px;padding:10px;max-width:1500px;margin:0 auto}
-@media(max-width:1000px){main{grid-template-columns:1fr}#inspector{order:2}#side{order:3}}
-#inspector{background:rgba(0,0,0,.6);border:1px solid var(--gold);border-radius:12px;padding:10px;align-self:start;position:sticky;top:70px}
-#inspector img{width:100%;border-radius:8px;display:block;background:#222}
-#inspector h2{font-size:17px;margin:8px 0 2px;color:var(--gold)}
-#inspector .tp{font-size:13px;opacity:.85}#inspector .tx{font-size:14px;white-space:pre-wrap;margin-top:6px}
-#inspector .pt{text-align:right;font-weight:bold}
-.zone h3{margin:10px 4px 6px;font-size:13px;text-transform:uppercase;letter-spacing:1px;opacity:.8}
-.cards{display:flex;flex-wrap:wrap;gap:8px;min-height:calc(var(--ch) + 8px)}
-#selfHand .cards{flex-wrap:nowrap;justify-content:center}
-#selfHand .card + .card{margin-left:calc(var(--cw) * -.55)}
-#selfHand .card:hover{margin-left:0;z-index:60}
-.card{position:relative;width:var(--cw);flex:0 0 auto}
-.card img{width:var(--cw);height:var(--ch);object-fit:cover;border-radius:7px;display:block;background:#1c1c1c;box-shadow:0 4px 10px #000c;transition:transform .12s}
-.card:hover img,.card:focus img{transform:scale(1.9);z-index:55;position:relative}
-.card.opp:hover img{transform-origin:top center}.card.me:hover img{transform-origin:bottom center}
-.card.tapped img{transform:rotate(12deg);filter:saturate(.7) brightness(.85)}
-.card.tapped:hover img{transform:rotate(12deg) scale(1.9)}
-.card .ptbadge{position:absolute;right:2px;bottom:2px;background:#fffe;border:1px solid #333;border-radius:6px;color:#000;font-size:12px;font-weight:bold;padding:0 5px}
-.card .sick{position:absolute;left:2px;top:2px;background:#0ff;border-radius:6px;color:#000;font-size:11px;font-weight:bold;padding:0 5px}
-.card .kill{position:absolute;left:-6px;top:-8px;display:none;background:#600;color:#fff;border:1px solid #f88;border-radius:50%;width:22px;height:22px;font-size:13px;line-height:1;padding:0}
+:root{
+  --ink:#0b0f12;--board:#141b20;--board-2:#1a242a;--seam:#3f4c53;--metal:#8b9aa1;
+  --paper:#f1eadc;--paper-ink:#172026;--amber:#f4b942;--vermilion:#ef5b4d;
+  --teal:#68d5c7;--focus:#9be8ff;--cw:104px;--ch:145px
+}
+*{box-sizing:border-box}
+html{background:var(--ink)}
+body{margin:0;min-height:100vh;background:var(--ink);color:var(--paper);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px}
+button{min-height:40px;border:1px solid var(--seam);border-radius:8px;background:#202b31;color:var(--paper);padding:8px 12px;font:inherit;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--amber);background:#29363d}
+button:focus-visible,.card:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+button:disabled{cursor:not-allowed;opacity:.42}
+button.primary{border-color:var(--amber);background:#4b3612;color:#ffe3a0}
+button.danger{border-color:var(--vermilion);background:#461e1b;color:#ffd0ca}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+#cueRail{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;min-height:64px;padding:10px 18px;background:#0d1317;border-bottom:1px solid var(--seam)}
+#brand{display:flex;align-items:center;gap:10px;min-width:190px}
+#brandMark{width:28px;height:28px;border:2px solid var(--amber);display:grid;place-items:center;color:var(--amber);font-weight:800;font-size:11px;transform:rotate(45deg)}
+#brandMark span{transform:rotate(-45deg)}
+#brandName{font:700 16px/1 "Arial Narrow","Roboto Condensed",system-ui,sans-serif;letter-spacing:.09em}
+#cueCells{display:flex;flex:1;gap:4px;overflow:auto}
+.cue{min-width:74px;padding:6px 8px;background:#1b252b;color:var(--metal);font:700 11px/1.1 "Arial Narrow","Roboto Condensed",system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+.cue.active{background:var(--amber);color:#1c1608;box-shadow:0 0 0 2px #ffe39a}
+.cue.priority{position:relative}
+.cue.priority:after{content:"";display:block;width:7px;height:7px;margin:5px auto 0;background:var(--teal);border-radius:50%}
+#turnBadge{white-space:nowrap;color:var(--metal);font:600 12px/1.25 ui-monospace,SFMono-Regular,Menlo,monospace}
+#status{display:none;padding:9px 18px;background:#5a3b0d;color:#ffdf95;text-align:center}
+#status.show{display:block}#status.err{background:#5c201c;color:#ffd0ca}
+.utility-bar{display:flex;flex-wrap:wrap;gap:6px;padding:10px 18px;background:#10171b;border-bottom:1px solid #28363d}
+.utility-bar .spacer{flex:1}
+.arena-shell{display:grid;grid-template-columns:240px minmax(500px,1fr) 270px;gap:12px;max-width:1650px;margin:0 auto;padding:14px}
+.panel{background:var(--board-2);border:1px solid var(--seam);border-radius:12px;padding:12px}
+#inspector{align-self:start;position:sticky;top:78px}
+#inspImgWrap{min-height:0}#inspImg{display:block;width:100%;aspect-ratio:5/7;object-fit:cover;background:#0d1317;border-radius:8px}
+#inspName{margin:10px 0 2px;font:700 17px/1.15 "Arial Narrow","Roboto Condensed",system-ui,sans-serif}
+#inspType{color:var(--metal);font-size:12px}
+#inspText{margin:8px 0 0;color:#d7cec0;line-height:1.45;white-space:pre-wrap}
+#inspPT{margin-top:10px;color:var(--amber);font:700 15px ui-monospace,SFMono-Regular,Menlo,monospace;text-align:right}
+#board{min-width:0;display:grid;gap:10px}
+.playerbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:10px 12px;background:#10171b;border:1px solid var(--seam);border-radius:8px}
+.playerbar.active{border-color:var(--amber);box-shadow:inset 0 0 0 1px #72531b}
+.player-name{font-weight:750}.player-role{color:var(--metal);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.stat{color:#d7cec0}.life{color:#ff9f96;font:750 20px ui-monospace,SFMono-Regular,Menlo,monospace}.mana{color:var(--teal);font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace}
+.zone{min-width:0;padding:9px 10px;background:#10171b;border:1px solid #2c3a41;border-radius:8px}
+.zone-title{display:flex;justify-content:space-between;align-items:center;margin:0 0 8px;color:var(--metal);font:700 11px/1.2 "Arial Narrow","Roboto Condensed",system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+.zone-title em{font-style:normal;color:var(--amber);font-weight:500;letter-spacing:0;text-transform:none}
+.cards{display:flex;flex-wrap:wrap;gap:9px;min-height:calc(var(--ch) + 8px)}
+#selfHand .cards{overflow-x:auto;flex-wrap:nowrap;justify-content:center;padding:8px 4px 12px}
+#selfHand .card + .card{margin-left:calc(var(--cw) * -.52)}
+#selfHand .card:hover,#selfHand .card:focus-within{margin-left:0;z-index:4}
+.card{position:relative;width:var(--cw);flex:0 0 auto;min-height:var(--ch);border-radius:8px;cursor:pointer}
+.card img{display:block;width:var(--cw);height:var(--ch);object-fit:cover;border-radius:8px;background:#27333a;box-shadow:0 5px 12px #0008;transition:transform .14s ease,filter .14s ease}
+.card.me:hover img,.card.me:focus img{transform:translateY(-9px)}
+.card.me.selected img{transform:translateY(-12px);box-shadow:0 0 0 3px var(--amber),0 7px 16px #000b}
+.card.tapped img{transform:rotate(10deg);filter:saturate(.7) brightness(.8)}
+.card.tapped:hover img,.card.tapped:focus img{transform:rotate(10deg) translateY(-4px)}
+.card.opp-attacker img{box-shadow:0 0 0 3px var(--vermilion),0 5px 12px #0008}
+.ptbadge{position:absolute;right:3px;bottom:3px;padding:2px 5px;border-radius:5px;background:var(--paper);color:var(--paper-ink);font:750 11px ui-monospace,SFMono-Regular,Menlo,monospace}
+.state-mark{position:absolute;left:3px;top:3px;padding:2px 4px;border-radius:4px;background:#0e4a49;color:#bff8f0;font:750 10px ui-monospace,SFMono-Regular,Menlo,monospace}
+.kill{position:absolute;right:-6px;top:-7px;display:none;min-height:24px;width:24px;padding:0;border-radius:50%;border-color:var(--vermilion);background:#5d211c;color:#ffd0ca;font-weight:800}
 .card:hover .kill,.card:focus .kill{display:block}
-.cardback{width:var(--cw);height:var(--ch);border-radius:7px;background:repeating-linear-gradient(45deg,#3a2a08,#3a2a08 8px,#241a04 8px,#241a04 16px);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:26px}
-.playerbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:rgba(0,0,0,.55);border:1px solid var(--gold);border-radius:12px;padding:8px 12px}
-.playerbar .life{font-size:22px;color:#ff9d9d}.playerbar .mana{font-size:14px}
-#side{background:rgba(0,0,0,.6);border:1px solid var(--gold);border-radius:12px;padding:10px;align-self:start;position:sticky;top:70px}
-#lifeCtl{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
-#log{list-style:none;margin:0;padding:0;max-height:50vh;overflow:auto;font-size:13px}
-#log li{border-bottom:1px solid #ffffff18;padding:3px 0}
-#diceFlash{position:fixed;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:99}
-#diceFlash span{font-size:90px;background:#000d;border:3px solid var(--gold);border-radius:20px;padding:10px 40px;animation:pop .9s}
-@keyframes pop{0%{transform:scale(.4);opacity:0}25%{transform:scale(1.1);opacity:1}80%{opacity:1}100%{opacity:0}}
-#loading{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:98;font-size:20px}
+.cardback{width:var(--cw);height:var(--ch);border:1px solid var(--metal);border-radius:8px;background:#202b31;display:grid;place-items:center;color:var(--amber);font:800 13px "Arial Narrow","Roboto Condensed",system-ui,sans-serif;letter-spacing:.12em}
+#stackLane{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:76px;padding:10px;background:#0c1215;border:1px solid #33424a;border-radius:8px}
+#stackLane .zone-title{grid-column:1/-1;margin-bottom:0}
+#stack{display:flex;flex-wrap:wrap;gap:7px;align-items:center;min-width:0}
+.stack-item{padding:7px 9px;background:#2d3940;border:1px solid var(--amber);color:#ffdda0;font-size:12px}
+#combatLane{display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 14px;background:#192329;border-top:1px solid var(--seam);border-bottom:1px solid var(--seam);color:var(--metal)}
+#combatLane strong{color:var(--paper)}#combatLane .arrow{color:var(--amber);font-size:18px}
+#side{align-self:start;position:sticky;top:78px}
+#actionPanel{display:grid;gap:7px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--seam)}
+#actionHint{margin:0;color:var(--metal);font-size:12px;line-height:1.4}
+#log{display:flex;flex-direction:column;gap:0;max-height:55vh;overflow:auto;margin:0;padding:0;list-style:none}
+#log li{padding:6px 0;border-bottom:1px solid #ffffff12;color:#d7cec0;font-size:12px;line-height:1.35}
+#diceFlash{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;pointer-events:none;background:#0b0f12aa}
+#diceFlash span{padding:24px 30px;border:2px solid var(--amber);background:#172026;color:var(--amber);font:800 56px ui-monospace,SFMono-Regular,Menlo,monospace;animation:cue-pop .55s steps(2,end)}
+.event-cast .card img,.event-resolve .card img{animation:card-cue .45s steps(2,end)}
+.event-attack .card img{animation:attack-cue .45s steps(2,end)}
+.event-damage .life{animation:damage-cue .45s steps(2,end)}
+@keyframes cue-pop{from{transform:scale(.82);opacity:.2}to{transform:scale(1);opacity:1}}
+@keyframes card-cue{from{transform:translateY(12px);filter:brightness(1.7)}to{transform:translateY(0);filter:none}}
+@keyframes attack-cue{from{transform:translateX(18px)}to{transform:translateX(0)}}
+@keyframes damage-cue{from{color:var(--vermilion);transform:scale(1.15)}to{color:#ff9f96;transform:scale(1)}}
+#loading{position:fixed;inset:0;z-index:25;display:flex;align-items:center;justify-content:center;background:#0b0f12eF;color:var(--paper);font:700 18px "Arial Narrow","Roboto Condensed",system-ui,sans-serif}
+@media(max-width:1180px){.arena-shell{grid-template-columns:210px minmax(440px,1fr)}#side{grid-column:1/-1;position:static}#log{max-height:180px}}
+@media(max-width:760px){
+  :root{--cw:82px;--ch:114px}
+  #cueRail{align-items:flex-start;flex-wrap:wrap;padding:10px 12px}#brand{min-width:150px}#cueCells{order:3;flex-basis:100%;width:100%}.cue{min-width:62px;font-size:10px}
+  .utility-bar{padding:8px 12px;overflow-x:auto;flex-wrap:nowrap}.utility-bar button{white-space:nowrap}
+  .arena-shell{display:block;padding:9px}.panel{margin-bottom:10px}#inspector{position:static;display:grid;grid-template-columns:90px 1fr;gap:0 10px}#inspImgWrap{grid-row:span 4}#inspImg{aspect-ratio:5/7}#inspName{margin-top:0}
+  #stackLane{grid-template-columns:1fr}#stackLane .zone-title{grid-column:auto}#combatLane{min-height:48px}
+  .cards{gap:6px}#selfHand .cards{justify-content:flex-start;padding-left:45px;padding-right:45px}
+  .playerbar{gap:8px}.stat{font-size:11px}.life{font-size:17px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:0.001ms!important}}
 </style>
 </head>
 <body>
-<div id="loading">🃏 Embaralhando decks…</div>
-<header id="hud">
-  <div><h1>⚔️ ARENA MTG</h1><span id="turnBadge">conectando…</span></div>
-  <div class="btns">
-    <button id="bDraw" title="Comprar carta">🂠 Comprar</button>
-    <button id="bUntap" title="Desvirar tudo">☀️ Desvirar</button>
-    <button id="bPhase" title="Avançar fase">⏭️ Fase</button>
-    <button id="bD20" title="Rolar d20">🎲 d20</button>
-    <button id="bD6" title="Rolar d6">🎲 d6</button>
-    <button id="bCoin" title="Cara ou coroa">🪙 Moeda</button>
-  </div>
+<!--
+THESIS: Make rules feel like live stage cues; refuse the generic fantasy dashboard.
+OWN-WORLD: Ink-black board, paper cards, metal seams, amber live cue, vermilion error, fixed-cell rail.
+STORY: Players see whose cue is live, choose a legal action, then watch it travel through stack and combat.
+FIRST VIEWPORT: Cue rail top; opponent wing upper; stack center; player wing lower; hand dock bottom; action beside active cue.
+FORM: Stage-manager cue board, assigned grounded direction 6, seed 98dcbd32.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+<div id="loading" role="status">Preparando mesa e embaralhando decks…</div>
+<header id="cueRail" aria-label="Controle da partida">
+  <div id="brand"><div id="brandMark" aria-hidden="true"><span>A</span></div><div id="brandName">ARENA MTG</div></div>
+  <div id="cueCells" aria-label="Fases da partida"></div>
+  <div id="turnBadge">conectando…</div>
 </header>
-<div id="status"></div>
-<main>
-  <aside id="inspector"><img id="inspImg" alt="Carta ampliada"><h2 id="inspName">Passe o mouse numa carta</h2><div class="tp" id="inspType"></div><div class="tx" id="inspText"></div><div class="pt" id="inspPT"></div></aside>
-  <section id="board">
-    <div class="playerbar" id="oppBar"></div>
-    <div class="zone"><h3>Mão do oponente</h3><div class="cards" id="oppHand"></div></div>
-    <div class="zone"><h3>Campo do oponente — passe o mouse para ler</h3><div class="cards" id="oppField"></div></div>
-    <div class="zone"><h3>Terrenos do oponente</h3><div class="cards" id="oppLands"></div></div>
-    <hr style="border-color:var(--gold)">
-    <div class="playerbar" id="selfBar"></div>
-    <div class="zone"><h3>Seus terrenos (clique = virar)</h3><div class="cards" id="selfLands"></div></div>
-    <div class="zone"><h3>Seu campo (clique = virar, ✕ = destruir)</h3><div class="cards" id="selfField"></div></div>
-    <div class="zone" id="selfHand"><h3>Sua mão (clique = jogar)</h3><div class="cards" id="selfHandCards"></div></div>
+<div id="status" role="status" aria-live="polite"></div>
+<nav class="utility-bar" aria-label="Ferramentas da mesa">
+  <button id="bD20" type="button">D20</button>
+  <button id="bD6" type="button">D6</button>
+  <button id="bCoin" type="button">Moeda</button>
+  <span class="spacer"></span>
+  <span id="connectionStatus" class="stat">offline</span>
+</nav>
+<main class="arena-shell">
+  <aside id="inspector" class="panel" aria-label="Inspeção da carta">
+    <div id="inspImgWrap" aria-hidden="true"></div>
+    <div><h1 id="inspName">Selecione uma carta</h1><div id="inspType"></div><p id="inspText">Foco ou clique em carta para ler detalhes.</p><div id="inspPT"></div></div>
+  </aside>
+  <section id="board" aria-label="Mesa de jogo">
+    <section class="playerbar" id="oppBar" aria-label="Status do oponente"></section>
+    <section class="zone" aria-labelledby="oppHandTitle"><h2 class="zone-title" id="oppHandTitle">Mão do oponente <em id="oppHandCount"></em></h2><div class="cards" id="oppHand"></div></section>
+    <section class="zone" aria-labelledby="oppFieldTitle"><h2 class="zone-title" id="oppFieldTitle">Campo do oponente</h2><div class="cards" id="oppField"></div></section>
+    <section class="zone" aria-labelledby="oppLandsTitle"><h2 class="zone-title" id="oppLandsTitle">Terrenos do oponente</h2><div class="cards" id="oppLands"></div></section>
+    <section id="stackLane" aria-labelledby="stackTitle"><h2 class="zone-title" id="stackTitle">Fila de resolução <em id="stackState"></em></h2><div id="stack"></div><div id="combatLabel" class="stat">Nenhum combate ativo</div></section>
+    <section id="combatLane" aria-live="polite"><span>COMBATE</span><span class="arrow" aria-hidden="true">→</span><strong id="combatText">Aguardando declaração</strong></section>
+    <section class="zone" aria-labelledby="selfFieldTitle"><h2 class="zone-title" id="selfFieldTitle">Seu campo <em>clique para selecionar</em></h2><div class="cards" id="selfField"></div></section>
+    <section class="zone" aria-labelledby="selfLandsTitle"><h2 class="zone-title" id="selfLandsTitle">Seus terrenos <em>clique para gerar mana</em></h2><div class="cards" id="selfLands"></div></section>
+    <section class="playerbar" id="selfBar" aria-label="Seu status"></section>
+    <section class="zone" id="selfHand" aria-labelledby="selfHandTitle"><h2 class="zone-title" id="selfHandTitle">Sua mão <em>clique para jogar</em></h2><div class="cards" id="selfHandCards"></div></section>
   </section>
-  <aside id="side">
-    <h3 style="margin-top:0">❤️ Sua vida</h3>
-    <div id="lifeCtl"><button data-d="-5">−5</button><button data-d="-1">−1</button><button data-d="1">+1</button><button data-d="5">+5</button></div>
-    <h3>📜 Mesa</h3>
-    <ul id="log"></ul>
+  <aside id="side" class="panel" aria-label="Ações e histórico">
+    <section id="actionPanel" aria-label="Ação atual">
+      <p id="actionHint">Conectando à mesa…</p>
+      <button id="bMulligan" type="button">Trocar mão</button>
+      <button id="bKeep" type="button" class="primary">Manter mão</button>
+      <button id="bAttack" type="button" class="primary">Declarar ataque</button>
+      <button id="bBlock" type="button" class="primary">Confirmar bloqueio</button>
+      <button id="bPass" type="button">Passar prioridade</button>
+      <button id="bPhase" type="button">Avançar fase</button>
+      <button id="bConcede" type="button" class="danger">Conceder partida</button>
+    </section>
+    <h2 class="zone-title">Registro da mesa</h2>
+    <ol id="log" aria-live="polite"></ol>
   </aside>
 </main>
-<div id="diceFlash"><span id="diceVal"></span></div>
+<div id="diceFlash" aria-hidden="true"><span id="diceVal"></span></div>
 <script>
-// ponytail: html é estático por sala; o js descobre o roomId da própria URL.
 (function(){var m=location.pathname.match(/\/arena\/([^/?#]+)/);var s=document.createElement('script');s.src=m?'/arena/'+m[1]+'/assets/arena.js':'/arena/x/assets/arena.js';s.defer=true;document.body.appendChild(s);})();
 </script>
 </body>
