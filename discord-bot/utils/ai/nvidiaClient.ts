@@ -80,10 +80,8 @@ export async function chat(options: {
     try {
       const json: ChatCompletionResponse = await fetchWithAuth('/chat/completions', body, 30000);
       const msg: any = json.choices?.[0]?.message;
-      // gpt-oss models podem retornar reasoning separado; fallback para reasoning_content se content null
-      const content = msg?.content || msg?.reasoning_content || msg?.reasoning;
-      if (!content || !String(content).trim()) throw new Error('Resposta vazia da IA (NVIDIA)');
-      // Se content veio como reasoning leak em inglês (ex: nemotron), tenta extrair mas retorna mesmo assim
+      const content = json.choices?.[0]?.finish_reason === 'length' ? null : msg?.content;
+      if (typeof content !== 'string' || !content.trim()) throw new Error('Resposta vazia da IA (NVIDIA)');
       return String(content).trim();
     } catch (e: any) {
       attempt++;
@@ -128,8 +126,8 @@ export async function vision(prompt: string, imageBase64: string, mimeType: stri
     try {
       const json: ChatCompletionResponse = await fetchWithAuth('/chat/completions', body, 45000);
       const msg: any = json.choices?.[0]?.message;
-      const content = msg?.content || msg?.reasoning_content || msg?.reasoning;
-      if (!content || !String(content).trim()) throw new Error('Resposta vazia da IA Vision (NVIDIA)');
+      const content = json.choices?.[0]?.finish_reason === 'length' ? null : msg?.content;
+      if (typeof content !== 'string' || !content.trim()) throw new Error('Resposta vazia da IA Vision (NVIDIA)');
       return String(content).trim();
     } catch (e: any) {
       attempt++;

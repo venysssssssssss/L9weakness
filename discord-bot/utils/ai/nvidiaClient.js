@@ -56,8 +56,8 @@ async function chat(options) {
     try {
       const json = await fetchWithAuth('/chat/completions', body, 30000);
       const msg = json.choices?.[0]?.message;
-      const content = msg?.content || msg?.reasoning_content || msg?.reasoning;
-      if (!content || !String(content).trim()) throw new Error('Resposta vazia da IA (NVIDIA)');
+      const content = json.choices?.[0]?.finish_reason === 'length' ? null : msg?.content;
+      if (typeof content !== 'string' || !content.trim()) throw new Error('Resposta vazia da IA (NVIDIA)');
       return String(content).trim();
     } catch (e) {
       attempt++;
@@ -99,8 +99,8 @@ async function vision(prompt, imageBase64, mimeType, modelOverride) {
     try {
       const json = await fetchWithAuth('/chat/completions', body, 45000);
       const msg = json.choices?.[0]?.message;
-      const content = msg?.content || msg?.reasoning_content || msg?.reasoning;
-      if (!content || !String(content).trim()) throw new Error('Resposta vazia da IA Vision (NVIDIA)');
+      const content = json.choices?.[0]?.finish_reason === 'length' ? null : msg?.content;
+      if (typeof content !== 'string' || !content.trim()) throw new Error('Resposta vazia da IA Vision (NVIDIA)');
       return String(content).trim();
     } catch (e) {
       attempt++;
