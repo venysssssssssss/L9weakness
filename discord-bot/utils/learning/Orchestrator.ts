@@ -38,9 +38,10 @@ export class LearningOrchestrator {
     let summariesSaved = 0;
     let totalTokens = 0;
     const daySummaries: string[] = [];
-    const topicsCovered: string[] = [];
+    const topicsCovered: string[] = this.storage.getTopicsForDay(day);
+    const maxPagesPerDay = parseInt(process.env.LEARNING_MAX_PAGES_DAY || '250', 10);
 
-    console.log(`[Learning] 🚀 Iniciando jornada de ${durationMinutes}min para o dia ${day} | modelo ${cfg.textModel}`);
+    console.log(`[Learning] 🚀 Iniciando jornada de ${durationMinutes}min para o dia ${day} | modelos ${cfg.fastModels.join(" → ")}`);
 
     const will = this.willManager.getCurrent();
     const recentKnowledge = this.storage.getRecentKnowledge(5);
@@ -51,21 +52,19 @@ export class LearningOrchestrator {
         const remainingSec = Math.ceil((endAt - Date.now()) / 1000);
         if (remainingSec <= 0) break;
 
-        // 1. Generate curiosity-driven query
-        let query: string;
-        try {
-          query = await this.summarizer.generateCuriosityQuery(recentSummaries.concat(daySummaries), will);
-        } catch (e: any) {
-          console.warn('[Learning] Query generation failed, using fallback', e.message);
-          query = will.curiosity[Math.floor(Math.random() * will.curiosity.length)] || 'tecnologia';
+        if (this.storage.getStats().today >= maxPagesPerDay) {
+          console.log(`[Learning] Orçamento diário (${maxPagesPerDay} páginas) atingido, encerrando slot`);
+          break;
         }
 
-        if (!query || topicsCovered.includes(query)) {
-          // Avoid duplicate queries same day
-          query = `curiosidade ${Math.floor(Math.random() * 10000)}`;
-        }
+        // 1. Chat-fed curiosity first (searches users asked for), then LLM curiosity; no duplicates today.
+        let query = this.storage.popCuriosity();
+        const source = query ? 'chat' : 'will';
+        if (!query) query = await this.summarizer.generateCuriosityQuery(recentSummaries.concat(daySummaries), will);
+        if (!query || topicsCovered.includes(query)) query = this.summarizer.randomTopic(will);
+        if (topicsCovered.includes(query)) { await this.sleep(1000); continue; }
         topicsCovered.push(query);
-        console.log(`[Learning] 🔍 Curiosidade: "${query}" | restam ${Math.floor(remainingSec/60)}m${remainingSec%60}s`);
+        console.log(`[Learning] 🔍 Curiosidade (${source}): "${query}" | restam ${Math.floor(remainingSec/60)}m${remainingSec%60}s`);
 
         // 2. Search
         let searchResults: any[] = [];
@@ -169,7 +168,7 @@ export class LearningOrchestrator {
 
   // Run 1h (default) - can be called by scheduler or manual command
   async runOneHour(): Promise<void> {
-    const minutes = parseInt(process.env.LEARNING_DURATION_MIN || '60', 10);
+    const minutes = parseInt(process.env.LEARNING_DURATION_MIN || '10', 10);
     await this.runForDuration(minutes);
   }
 

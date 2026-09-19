@@ -50,10 +50,10 @@ module.exports = {
 						await interaction.followUp({ content: '⚠️ NVIDIA_API_KEY não configurada. Assumindo 1 hora.', flags: 64 });
 					} else {
 						try {
-							console.log('[LimparUsuario] Tentando parse via NVIDIA', cfg.textModel);
+							console.log('[LimparUsuario] Tentando parse via NVIDIA', cfg.fastModels[0]);
 							const prompt = buildTimeParserPrompt(tempoTexto);
 							const responseText = await chat({
-								model: cfg.textModel,
+								models: cfg.fastModels,
 								messages: [{ role: 'user', content: prompt }],
 								temperature: 0,
 								max_tokens: 500,

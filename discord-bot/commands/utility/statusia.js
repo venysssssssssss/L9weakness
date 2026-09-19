@@ -41,7 +41,8 @@ module.exports = {
 			}
 
 			const models = [
-				{ name: cfg.textModel, desc: 'Texto rápido — SimSimi / parser tempo', status: apiOnline ? '✅ Ativo' : '⚠️ Erro' },
+				{ name: cfg.chatModels.join(' → '), desc: 'Cadeia chat — SimSimi', status: apiOnline ? '✅ Ativo' : '⚠️ Erro' },
+				{ name: cfg.fastModels.join(' → '), desc: 'Cadeia fast — aprendizado', status: apiOnline ? '✅ Ativo' : '⚠️ Erro' },
 				{ name: cfg.visionModel, desc: '90B Vision — Sherlock', status: apiOnline ? '✅ Ativo' : '⚠️ Erro' },
 				{ name: cfg.imageModel, desc: `Imagem — Imaginar (${cfg.imageSize})`, status: apiOnline ? '✅ Ativo' : '⚠️ Erro' },
 			];
@@ -51,7 +52,7 @@ module.exports = {
 				.setColor(apiOnline ? 0x76B900 : 0xFF0000)
 				.addFields(
 					{ name: apiOnline ? '✅ Status da API' : '❌ Status da API', value: apiOnline ? `Online (${latency}ms)` : `Offline (${errorDetail?.substring(0,80) || 'erro'})`, inline: true },
-					{ name: '🧠 Texto', value: cfg.textModel, inline: true },
+					{ name: '🧠 Chat', value: cfg.chatModels[0], inline: true },
 					{ name: '👁️ Vision', value: cfg.visionModel, inline: true },
 					{ name: '🎨 Imagem', value: `${cfg.imageModel} (${cfg.imageSize})`, inline: true },
 					{ name: '⏱️ Limites', value: `Vision: ${cfg.visionCooldownSec}s / ${cfg.visionDailyLimit}/dia\nImagem: ${cfg.imageCooldownSec}s / ${cfg.imageDailyLimit}/dia`, inline: false },

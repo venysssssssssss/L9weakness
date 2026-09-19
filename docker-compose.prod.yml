@@ -5,6 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: L9Weakness
     restart: unless-stopped
+    mem_limit: 640m
     env_file:
       - discord-bot/.env
     ports:

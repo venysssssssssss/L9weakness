@@ -57,6 +57,15 @@ const commandFolders = fs.readdirSync(foldersPath);
             }
         }
 
+        // SimSimi: canais ativos e histórico persistem em data/learning.db (sobrevivem restart).
+        try {
+            const { getLearningStorage } = await import('./utils/learning/Storage');
+            const restored = require('./simsimiState.js').init(getLearningStorage());
+            console.log(`[Bot] 💬 SimSimi restaurado em ${restored} canal(is)`);
+        } catch (e: any) {
+            console.warn('[Bot] SimSimi sem persistência:', e.message);
+        }
+
         console.log('[Bot] Carregando eventos...');
         const eventsPath = path.join(__dirname, 'events');
         const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
@@ -112,7 +121,7 @@ const commandFolders = fs.readdirSync(foldersPath);
             const will = wm.getCurrent();
             console.log(`[Bot] 🧠 Will v${will.version} streak=${will.daily_streak} curiosidade=${will.curiosity.slice(0,3).join(', ')}`);
             startLearningScheduler();
-            console.log('[Bot] 📚 Sistema de aprendizado 1h/dia ativo (NVIDIA + crawler)');
+            console.log('[Bot] 📚 Aprendizado contínuo ativo (NVIDIA + crawler)');
         } catch (e: any) {
             console.warn('[Bot] Learning scheduler falhou ao iniciar:', e.message);
         }

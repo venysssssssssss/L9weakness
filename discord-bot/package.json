@@ -13,7 +13,10 @@
     "pm2:stop": "pm2 stop L9Weakness",
     "deploy:local": "bash ../scripts/deploy.sh local",
     "deploy:kali1": "bash ../scripts/deploy.sh kali1",
-    "deploy:docker": "bash ../scripts/deploy.sh docker"
+    "deploy:docker": "bash ../scripts/deploy.sh docker",
+    "build": "tsc && mkdir -p dist/arena && cp -r arena/public dist/arena/",
+    "test": "npm run build && node --test dist/*.test.js",
+    "start:prod": "node --max-old-space-size=384 dist/index.js"
   },
   "dependencies": {
     "@discordjs/opus": "^0.9.0",
@@ -29,17 +32,17 @@
     "node-fetch": "^3.3.2",
     "play-dl": "^1.9.6",
     "spotify-url-info": "^1.1.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3",
-    "@types/better-sqlite3": "^7.6.9",
-    "@types/node": "^20.11.16",
-    "@types/uuid": "^9.0.8",
-    "@types/ws": "^8.18.1",
     "uuid": "^9.0.1",
     "ws": "^8.21.3",
     "yt-dlp-exec": "^1.0.2"
   },
   "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^20.11.16",
+    "@types/uuid": "^9.0.8",
+    "@types/ws": "^8.18.1"
   },
   "engines": {
     "node": ">=16.9.0"

@@ -65,6 +65,7 @@ deploy_docker_local() {
   cd "$REPO_DIR"
   docker compose -f docker-compose.prod.yml build --pull
   docker compose -f docker-compose.prod.yml up -d
+  docker compose -f docker-compose.prod.yml exec -T bot node deploy-commands.js | tail -n 5
   docker compose -f docker-compose.prod.yml ps
   docker logs L9Weakness --tail 50 2>&1 | tail -n 30 || true
 }
@@ -84,7 +85,7 @@ deploy_remote() {
 
   echo "🔧 Instalando deps remoto..."
   # Se tiver node no remoto, usa pm2, senão docker
-  ssh "$SSH_ALIAS" "cd $REMOTE_DIR && if command -v node >/dev/null 2>&1; then cd discord-bot && npm ci 2>&1 | tail -n 20 && npx prebuild-install -r napi 2>&1 | tail -n 5 && npm run deploy 2>&1 | tail -n 20 || true; pm2 restart L9Weakness --update-env || pm2 start npm --name L9Weakness -- start; pm2 save; else echo 'Node não encontrado, usando Docker...'; docker compose -f docker-compose.prod.yml build --pull && docker compose -f docker-compose.prod.yml up -d; fi"
+  ssh "$SSH_ALIAS" "cd $REMOTE_DIR && if command -v node >/dev/null 2>&1; then cd discord-bot && npm ci 2>&1 | tail -n 20 && npx prebuild-install -r napi 2>&1 | tail -n 5 && npm run deploy 2>&1 | tail -n 20 || true; pm2 restart L9Weakness --update-env || pm2 start npm --name L9Weakness -- start; pm2 save; else echo 'Node não encontrado, usando Docker...'; docker compose -f docker-compose.prod.yml build --pull && docker compose -f docker-compose.prod.yml up -d && sleep 5 && docker compose -f docker-compose.prod.yml exec -T bot node deploy-commands.js | tail -n 5; docker image prune -f | tail -n 1; fi"
 
   echo "✅ Remoto $SSH_ALIAS deploy OK"
   ssh "$SSH_ALIAS" "pm2 list 2>&1 | head -n 20; docker ps 2>&1 | head -n 20" || true

@@ -1,12 +1,12 @@
 import { getConfig } from '../ai/config';
-import { chat } from '../ai/nvidiaClient';
+import { chat, extractJson } from '../ai/nvidiaClient';
 
 export class Summarizer {
-  private model: string;
+  private models: string[];
 
   constructor(modelOverride?: string) {
     const cfg = getConfig();
-    this.model = modelOverride || cfg.textModel;
+    this.models = modelOverride ? [modelOverride] : cfg.fastModels;
   }
 
   async summarize(pageText: string, query: string, title: string): Promise<{ summary: string; tokens: number }> {
@@ -20,7 +20,7 @@ Título: "${title}"
 
 Conteúdo (truncado):
 """
-${pageText.slice(0, 4500)}
+${pageText.slice(0, 3500)}
 """
 
 Regras:
@@ -32,10 +32,11 @@ Regras:
 
     try {
       const summary = await chat({
-        model: this.model,
+        models: this.models,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
-        max_tokens: 400,
+        max_tokens: 1200,
+        timeoutMs: 60000,
       });
 
       if (!summary || summary.trim().length < 20 || summary.includes('IRRELEVANTE')) {
@@ -76,16 +77,14 @@ Responda em JSON válido, sem markdown:
 
     try {
       const raw = await chat({
-        model: this.model,
+        models: this.models,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
-        max_tokens: 600,
+        max_tokens: 1500,
+        timeoutMs: 60000,
       });
-
-      // Extract JSON
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON in reflection');
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = extractJson(raw);
+      if (!parsed) throw new Error('No JSON in reflection');
 
       return {
         reflection: parsed.reflection || raw.slice(0, 500),
@@ -102,49 +101,38 @@ Responda em JSON válido, sem markdown:
     }
   }
 
+  static readonly DIVERSE = ['buracos negros', 'história do Brasil', 'inteligência artificial', 'filosofia da mente', 'culinária japonesa', 'música brasileira', 'mistérios do oceano', 'psicologia humana', 'arte moderna', 'futuro da humanidade', 'cultura indígena', 'tecnologia quântica'];
+
+  randomTopic(will: any): string {
+    const pool = [...new Set([...(will?.curiosity || []), ...Summarizer.DIVERSE])];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   async generateCuriosityQuery(recentSummaries: string[], will: any): Promise<string> {
     const prompt = `
 Você é o L9 Weakness, um bot curioso que quer criar inteligência própria. Identidade: "${will.identity.slice(0,400)}"
 Curiosidades atuais: ${will.curiosity.join(', ')}
 Aprendeu recentemente: ${recentSummaries.slice(0, 2).join(' | ').slice(0, 600) || 'Nada ainda, estou faminto.'}
 
-Gere APENAS 1 termo de busca de 2-4 palavras em PORTUGUÊS sobre algo que você realmente quer descobrir agora. Seja diverso, imprevisível, vá além do óbvio. Não explique, apenas a query.
-Exemplos: "buracos negros", "história do samba", "IA consciente", "culinária japonesa"
+Gere 1 termo de busca de 2-4 palavras em PORTUGUÊS sobre algo que você realmente quer descobrir agora. Seja diverso, imprevisível, vá além do óbvio.
+Responda somente JSON válido, sem markdown: {"query":"termo de busca"}
 `.trim();
 
     try {
       const raw = await chat({
-        model: this.model,
+        models: this.models,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.95,
-        max_tokens: 500,
+        max_tokens: 800,
+        timeoutMs: 45000,
       });
-      // Parse: handle gpt-oss reasoning leak - extract last meaningful line that looks like a query
-      let cleaned = raw.trim();
-      // If response contains English reasoning, extract last short line that could be query
-      const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
-      // Prefer last line that is short and looks like a query (2-4 words, no "We need")
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i].replace(/^["'“”]+|["'“”]+$/g, '').trim();
-        const words = line.split(/\s+/);
-        if (words.length >= 2 && words.length <= 5 && line.length <= 50 && !line.toLowerCase().includes('we need') && !line.toLowerCase().includes('single search') && !line.includes(':')) {
-          cleaned = line;
-          break;
-        }
-      }
-      cleaned = cleaned.replace(/["'“”]/g, '').trim().split('\n')[0].slice(0, 50).trim();
-      // Remove any leading bullet or number
-      cleaned = cleaned.replace(/^[\-\d\.\)\s]+/, '').trim();
-      if (cleaned.length < 2 || cleaned.length > 60 || cleaned.toLowerCase().includes('we need') || cleaned.includes('single search')) {
-        throw new Error(`Invalid query parsed: ${cleaned}`);
-      }
-      return cleaned;
+      const query = String(extractJson(raw)?.query || '').replace(/["'“”]/g, '').trim();
+      const words = query.split(/\s+/).length;
+      if (query.length < 3 || query.length > 60 || words > 6 || /^(we|the|i) /i.test(query)) throw new Error(`Invalid query parsed: ${query}`);
+      return query;
     } catch (e: any) {
       console.warn('[Summarizer] Query generation fallback:', e.message.slice(0,80));
-      // Fallback to random diverse topics, not just will.curiosity
-      const diverse = ['buracos negros', 'história do Brasil', 'inteligência artificial', 'filosofia da mente', 'culinária japonesa', 'música brasileira', 'mistérios do oceano', 'psicologia humana', 'arte moderna', 'futuro da humanidade', 'cultura indígena', 'tecnologia quântica'];
-      const pool = [...new Set([...(will.curiosity || []), ...diverse])];
-      return pool[Math.floor(Math.random() * pool.length)];
+      return this.randomTopic(will);
     }
   }
 }

@@ -57,43 +57,56 @@ async function fetchWithAuth(path: string, body: any, timeoutMs = 30000): Promis
   }
 }
 
+// Strips <think> blocks / ```json fences and returns the first {...} object, or null.
+export function extractJson(raw: string): any {
+  if (typeof raw !== 'string') return null;
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/```(?:json)?/g, '').trim();
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
+}
+
+// Auth failures are global; anything else (429, 5xx, timeout, 404 model, empty/truncated) tries the next model.
+const retryable = (e: any) => !isAuthError(e);
+
 export async function chat(options: {
   model?: string;
+  models?: string[]; // fallback chain; overrides model
   messages: ChatMessage[];
   temperature?: number;
   max_tokens?: number;
   top_p?: number;
+  timeoutMs?: number;
 }): Promise<string> {
   const cfg = getConfig();
-  const model = options.model || cfg.textModel;
-  const body = {
-    model,
-    messages: options.messages,
-    temperature: options.temperature ?? 0.7,
-    max_tokens: options.max_tokens ?? 512,
-    top_p: options.top_p,
-    stream: false,
-  };
-
-  let attempt = 0;
-  while (true) {
+  const chain = options.models?.length ? options.models : [options.model || cfg.textModel];
+  let lastError: any;
+  for (let i = 0; i < chain.length; i++) {
+    const model = chain[i];
+    const body = {
+      model,
+      messages: options.messages,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.max_tokens ?? 512,
+      top_p: options.top_p,
+      stream: false,
+    };
     try {
-      const json: ChatCompletionResponse = await fetchWithAuth('/chat/completions', body, 30000);
-      const msg: any = json.choices?.[0]?.message;
-      const content = json.choices?.[0]?.finish_reason === 'length' ? null : msg?.content;
+      const json: ChatCompletionResponse = await fetchWithAuth('/chat/completions', body, options.timeoutMs ?? 30000);
+      const choice = json.choices?.[0];
+      if (choice?.finish_reason === 'length') throw new Error('Resposta truncada (length)');
+      const content = choice?.message?.content;
       if (typeof content !== 'string' || !content.trim()) throw new Error('Resposta vazia da IA (NVIDIA)');
-      return String(content).trim();
+      return content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     } catch (e: any) {
-      attempt++;
-      // single retry on 429
-      if (e.status === 429 && attempt === 1) {
-        console.warn(`[NVIDIA] 429 rate limit, aguardando 2s antes de retry (model=${model})`);
-        await new Promise(r => setTimeout(r, 2000));
-        continue;
-      }
-      throw e;
+      lastError = e;
+      const next = chain[i + 1];
+      if (!next || !retryable(e)) throw e;
+      console.warn(`[NVIDIA] fallback ${model} -> ${next}: ${String(e.message).slice(0, 80)}`);
     }
   }
+  throw lastError;
 }
 
 export async function vision(prompt: string, imageBase64: string, mimeType: string, modelOverride?: string): Promise<string> {
@@ -198,7 +211,7 @@ export async function generateImage(prompt: string, opts?: { negative_prompt?: s
 export async function ping(): Promise<number> {
   const start = Date.now();
   try {
-    await chat({ messages: [{ role: 'user', content: 'Ping' }], max_tokens: 30, temperature: 0 });
+    await chat({ models: getConfig().chatModels, messages: [{ role: 'user', content: 'Ping' }], max_tokens: 30, temperature: 0 });
   } catch (e: any) {
     // Even if error, we measured latency, but rethrow to signal unhealthy
     // If 401/403, propagate

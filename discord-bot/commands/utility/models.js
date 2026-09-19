@@ -10,7 +10,8 @@ module.exports = {
 
         const cfg = getConfig();
         const models = [
-            { name: cfg.textModel, desc: 'Texto rápido, multimodal — usado em SimSimi + parser tempo. Baixo custo/latência.', status: '✅ Ativo (8B)' },
+            { name: cfg.chatModels.join(' → '), desc: 'Cadeia de chat (SimSimi) — qualidade primeiro, fallback automático em 429/5xx/timeout.', status: '✅ Ativo (chat)' },
+            { name: cfg.fastModels.join(' → '), desc: 'Cadeia rápida — resumos e curiosidade do aprendizado contínuo.', status: '✅ Ativo (fast)' },
             { name: cfg.visionModel, desc: '90B Vision — Sherlock. Alto custo, deduções detalhadas. Cooldown 45s.', status: '✅ Ativo (90B Vision)' },
             { name: cfg.imageModel, desc: `Imagem SDXL Turbo — Imaginar (${cfg.imageSize}). Cooldown ${cfg.imageCooldownSec}s.`, status: '✅ Ativo (SDXL)' },
         ];

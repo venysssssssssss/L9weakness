@@ -2,6 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.
 import { getLearningStorage } from '../../utils/learning/Storage';
 import { WillManager } from '../../utils/learning/Will';
 import { getOrchestrator } from '../../utils/learning/Orchestrator';
+import { getConfig } from '../../utils/ai/config';
 
 export const data = new SlashCommandBuilder()
   .setName('learning')
@@ -10,7 +11,8 @@ export const data = new SlashCommandBuilder()
   .addSubcommand(sc => sc.setName('will').setDescription('Mostra a vontade própria atual do bot'))
   .addSubcommand(sc => sc.setName('history').setDescription('Mostra últimos aprendizados').addIntegerOption(o => o.setName('limite').setDescription('Quantos itens').setRequired(false)))
   .addSubcommand(sc => sc.setName('trigger').setDescription('Dispara aprendizado manual (admin)').addIntegerOption(o => o.setName('minutos').setDescription('Duração em minutos (1-60)').setRequired(false)))
-  .addSubcommand(sc => sc.setName('stop').setDescription('Para aprendizado em andamento (admin)'));
+  .addSubcommand(sc => sc.setName('stop').setDescription('Para aprendizado em andamento (admin)'))
+  .addSubcommand(sc => sc.setName('curiosidade').setDescription('Pede pro bot pesquisar um tema no próximo slot').addStringOption(o => o.setName('tema').setDescription('2-6 palavras').setRequired(true)));
 
 export async function execute(interaction: any) {
   const sub = interaction.options.getSubcommand();
@@ -32,8 +34,9 @@ export async function execute(interaction: any) {
         .setColor(isActive ? 0x00FF00 : 0x76B900)
         .setDescription(
           `**Status:** ${isActive ? '🔴 Em execução (consome internet)' : '🟢 Agendado diariamente'}\n` +
-          `**Agendamento:** Todo dia às \`${process.env.LEARNING_START_HOUR || 3}:${String(process.env.LEARNING_START_MINUTE || 0).padStart(2,'0')} UTC\` por \`${process.env.LEARNING_DURATION_MIN || 60}min\`\n` +
-          `**Modelo:** \`${process.env.NVIDIA_TEXT_MODEL || 'openai/gpt-oss-20b'}\` • **Vontade v${will.version}**\n\n` +
+          `**Agendamento:** cron \`${process.env.LEARNING_CRON || '0 */4 * * *'}\` UTC, \`${process.env.LEARNING_DURATION_MIN || 10}min\` por slot\n` +
+          `**Modelos:** \`${getConfig().fastModels.join(' → ')}\` • **Vontade v${will.version}**\n` +
+          `**Fila do chat:** ${storage.curiosityQueue().join(', ') || 'vazia'}\n\n` +
           `**Conhecimento:** ${stats.total} páginas • Hoje: ${stats.today} • Últimos 7d: ${stats.last7} • Streak: ${will.daily_streak} dias\n` +
           `**Curiosidades:** ${will.curiosity.join(', ')}\n` +
           `**Última reflexão:** ${reflections[0]?.summary.slice(0,300) || will.learned_summary.slice(0,300)}`
@@ -97,6 +100,13 @@ export async function execute(interaction: any) {
           console.error('[Learning] Manual erro:', e.message);
         }
       }, 1000);
+      return;
+    }
+
+    if (sub === 'curiosidade') {
+      const tema = interaction.options.getString('tema').trim();
+      storage.pushCuriosity(tema);
+      await interaction.editReply(`🔎 Anotado: vou pesquisar **${tema.slice(0, 80)}** no próximo slot. Fila: ${storage.curiosityQueue().join(', ')}`);
       return;
     }
 

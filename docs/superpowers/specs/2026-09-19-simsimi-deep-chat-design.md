@@ -46,8 +46,8 @@ Mantém gate atual (direct/noise/cooldown/pause/drain). Muda:
 - **Memória**: reply pode trazer `"note":"fato curto"` → `memory_notes` (cap 20/canal, 300 chars).
   Histórico e canais ativos persistidos (`chat_messages`, `chat_channels`) → sobrevive restart;
   contexto ao modelo = últimas 12 msgs ≤ 24 h (era 10 min).
-- **Chat alimenta treino**: query de `search` e perguntas `depth:"deep"` → `curiosity_queue`
-  (cap 10) consumida no próximo slot de learning.
+- **Chat alimenta treino**: query de `search` (e `/learning curiosidade`) → `curiosity_queue` (cap 10)
+  consumida no próximo slot de learning. (Perguntas `deep` não entram: conteúdo bruto é query ruim.)
 - `decision()` aceita `search`; `text` via `extractJson()` (strip ```json e `<think>`).
 
 ### 2. Prompt (`utils/ai/prompts.ts`)
@@ -113,3 +113,19 @@ pedir outra busca; `deep` = estruturado, ≤ 1900 chars; `note` só p/ fato dur�
   são ignorados → seguros.
 - Flag (não fazer agora): Ubuntu 20.04 EOL nas duas VMs; upgrade exige sudo + reboot.
 
+
+## Resultado do probe (2026-09-19, `scripts/probe-models.sh`, JSON PT-BR, 3 prompts)
+
+| modelo | ok | p50 | max |
+|---|---|---|---|
+| nvidia/nemotron-3-ultra-550b-a55b | 3/3 | 1.6 s | 2.8 s |
+| mistralai/mistral-nemotron | 3/3 | 1.2 s | 1.9 s |
+| nvidia/nemotron-3-super-120b-a12b | 3/3 | 3.0 s | 7.2 s |
+| z-ai/glm-5.3 | 3/3 | 21 s | 22 s |
+| nvidia/nemotron-3.5-lightning-30b-a3b | 3/3 | 23 s | 31 s |
+| openai/gpt-oss-20b | 3/3 | 17–18 s | 19 s |
+| moonshotai/kimi-k3, deepseek-v4-flash, glm-5.3-flash | timeout 60 s | | |
+| mistral-large-2, nemotron-nano-3, llama-3.1-nemotron-70b/ultra-253b, kimi-k2.6, gemma-3-12b | 404 p/ conta | | |
+
+Cadeias: CHAT = ultra-550b → super-120b → glm-5.3 → gpt-oss-20b; FAST = mistral-nemotron → super-120b → lightning-30b → gpt-oss-20b.
+Prompt validado ao vivo (`dist/test-simsimi-live.js`): oi solto → reply; fato recente → search; conversa de terceiros → silence; knowledge → "eu li que…" + note; pedido deep → estruturado.

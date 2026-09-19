@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+discord-bot/data
+discord-bot/logs
+.git
+.arena-backup-*
+docs
+*.png

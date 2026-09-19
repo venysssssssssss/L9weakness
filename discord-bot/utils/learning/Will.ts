@@ -11,18 +11,22 @@ export class WillManager {
   evolve(reflection: string, nextCuriosity: string[], willUpdate: string, learnedCount: number): WillState {
     const current = this.getCurrent();
     const today = new Date().toISOString().slice(0, 10);
+    const alreadyToday = current.updated_at.slice(0, 10) === today && current.version > 1;
+    // ponytail: identity = fixed base (first sentence block) + latest evolution; no unbounded concatenation.
+    const base = current.identity.split(/(?<=\.)\s/).slice(0, 2).join(' ').slice(0, 300);
+    const evolution = (current.personality_evolution.split(' | ').filter(Boolean).slice(-4))
+      .concat(willUpdate.length > 20 ? [`Dia ${today}: ${willUpdate.slice(0, 160)}`] : []);
 
     const updated: WillState = {
       ...current,
       version: current.version + 1,
       updated_at: new Date().toISOString(),
-      // Evolve identity slightly with reflection
-      identity: willUpdate.length > 20 ? `${current.identity} ${willUpdate}`.slice(0, 800) : current.identity,
+      identity: willUpdate.length > 20 ? `${base} ${willUpdate.slice(0, 200)}`.slice(0, 500) : current.identity,
       curiosity: nextCuriosity.length ? nextCuriosity : current.curiosity,
       learned_summary: reflection.slice(0, 600),
-      daily_streak: current.daily_streak + 1,
+      daily_streak: alreadyToday ? current.daily_streak : current.daily_streak + 1,
       total_knowledge: learnedCount,
-      personality_evolution: `${current.personality_evolution} | Dia ${today}: ${willUpdate}`.slice(0, 1000),
+      personality_evolution: evolution.join(' | ').slice(0, 1000),
     };
 
     this.storage.saveWill(updated);

@@ -57,23 +57,44 @@ docker compose -f docker-compose.prod.yml ps
 docker logs L9Weakness --tail 100
 ```
 
-## Learning 1h/dia
+## Learning contínuo
 
-- **Agendado:** `LEARNING_START_HOUR=3` UTC por `LEARNING_DURATION_MIN=60` via `node-cron` em `utils/learning/scheduler.ts`
-- **Manual:** `/learning trigger minutos:5` (admin no Discord) ou `./scripts/learning-test.sh 2`
+- **Agendado:** `LEARNING_CRON=0 */4 * * *` UTC × `LEARNING_DURATION_MIN=10` (6 slots = 60 min/dia) via `node-cron` em `utils/learning/scheduler.ts`. `LEARNING_MAX_PAGES_DAY=250` corta cedo.
+- **Fila do chat:** buscas que o SimSimi fez (`action:search`) e `/learning curiosidade tema` entram em `curiosity_queue` e são pesquisadas primeiro.
+- **Manual:** `/learning trigger minutos:60` (admin) dá 1 h sob demanda; `./scripts/learning-test.sh 2` local.
 - **Status:** `/learning status` / `/learning will` / `/learning history`
-- **DB:** `discord-bot/data/learning.db` (SQLite) + `data/will.json`
-- **Logs:** `pm2 logs | grep Learning`
+- **DB:** `discord-bot/data/learning.db` (SQLite: knowledge + FTS5, chat_messages, memory_notes, curiosity_queue) + `data/will.json`
+- **Chat usa a base:** `messageCreate.js` injeta `knowledge` (FTS5 top 3) e `notes` no prompt; modelo pode pedir `search` (DDG + fetch) 1× por turno.
+
+## Modelos NVIDIA (fallback)
+
+- `NVIDIA_CHAT_MODELS` (chat) e `NVIDIA_FAST_MODELS` (resumos) são listas csv; `chat()` cai para o próximo em 429/5xx/timeout/404/vazio.
+- Medir de novo: `scripts/probe-models.sh [modelo ...]` (roda em kali1, usa a chave do `.env`). Vários ids do catálogo dão 404 para a conta.
+- Checar prompt ao vivo: `npm run build && node dist/test-simsimi-live.js`.
+
+## Build
+
+- Prod roda **compilado**: `npm run build` (tsc + `arena/public`) → `node dist/index.js`. `Dockerfile` é multi-stage (imagem ~500 MB, sem ts-node).
+- Dev continua `npm start` (ts-node). Testes: `npm test`.
+
+## Backup + standby (kali2)
+
+- kali1 cron 04:30 UTC: `scripts/backup-data.sh` → `learning.bak.db` (SQLite online backup), `will.json`, `mtg.db` para `kali2:~/L9weakness/discord-bot/data/`.
+- kali2 tem o repo clonado, `.env` copiado e imagem buildada, **container parado**.
+- **Promover kali2** (kali1 fora): `ssh kali2 'cd L9weakness && cp discord-bot/data/learning.bak.db discord-bot/data/learning.db && docker compose -f docker-compose.prod.yml up -d'`. Nunca rode os dois ao mesmo tempo (mesmo token).
+- **Voltar p/ kali1:** parar em kali2, copiar `data/` de volta, `up -d` em kali1.
 
 ## Variáveis .env relevantes
 
 ```env
 NVIDIA_API_KEY=nvapi-...
-NVIDIA_TEXT_MODEL=openai/gpt-oss-20b
+NVIDIA_CHAT_MODELS=nvidia/nemotron-3-ultra-550b-a55b,nvidia/nemotron-3-super-120b-a12b,z-ai/glm-5.3,openai/gpt-oss-20b
+NVIDIA_FAST_MODELS=mistralai/mistral-nemotron,nvidia/nemotron-3-super-120b-a12b,nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b
 NVIDIA_VISION_MODEL=meta/llama-3.2-90b-vision-instruct
 LEARNING_ENABLED=true
-LEARNING_START_HOUR=3
-LEARNING_DURATION_MIN=60
+LEARNING_CRON=0 */4 * * *
+LEARNING_DURATION_MIN=10
+LEARNING_MAX_PAGES_DAY=250
 ```
 
 ## Checklist deploy
