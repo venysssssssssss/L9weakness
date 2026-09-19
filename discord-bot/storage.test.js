@@ -5,12 +5,13 @@ const { LearningStorage } = require('./utils/learning/Storage');
 
 test('knowledge is searchable via FTS5 and ranked', () => {
   const s = new LearningStorage(':memory:');
-  s.saveKnowledge({ topic: 'buracos negros', query: 'buracos negros', source_url: 'u1', title: 'Buracos negros', summary: 'Um buraco negro é uma região do espaço-tempo.', day: '2026-09-19' });
+  s.saveKnowledge({ topic: 'buracos negros', query: 'buracos negros', source_url: 'u1', title: 'Buracos negros', summary: 'Um buraco negro é uma região do espaço-tempo. Tudo sobre isso aqui.', day: '2026-09-19' });
   s.saveKnowledge({ topic: 'samba', query: 'samba', source_url: 'u2', title: 'Samba', summary: 'O samba nasceu no Rio de Janeiro.', day: '2026-09-19' });
   const hits = s.searchKnowledge('me explica o que é um buraco negro?');
   assert.equal(hits.length, 1);
   assert.equal(hits[0].url, 'u1');
   assert.deepEqual(s.searchKnowledge('oi'), []);
+  assert.deepEqual(s.searchKnowledge('tudo bem, e aí, o que tem de interessante para falarmos sobre?'), []);
 });
 
 test('chat channels, messages, notes and curiosity persist with caps', () => {

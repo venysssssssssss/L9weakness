@@ -78,10 +78,17 @@ export class LearningStorage {
     console.log('[LearningStorage] DB initialized at', this.db.name);
   }
 
-  // --- knowledge recall (FTS5, OR of the longer words so partial matches still rank) ---
+  // ponytail: tiny PT stopword list; swap for a stemmer if recall gets noisy.
+  private static STOP = new Set(['tudo', 'para', 'sobre', 'como', 'voce', 'mais', 'isso', 'essa', 'esse', 'esta', 'este', 'pode',
+    'tem', 'que', 'com', 'uma', 'umas', 'uns', 'seu', 'sua', 'meu', 'minha', 'mano', 'bot', 'simsimi', 'ai', 'bem', 'aqui', 'ali',
+    'entao', 'muito', 'pouco', 'tambem', 'porque', 'quando', 'onde', 'qual', 'quais', 'quem', 'nada', 'algo', 'alguma', 'algum',
+    'falar', 'falarmos', 'conversar', 'interessante', 'legal', 'coisa', 'coisas', 'hoje', 'agora', 'depois', 'antes', 'ainda',
+    'sempre', 'nunca', 'todo', 'toda', 'todos', 'todas', 'outro', 'outra', 'mesmo', 'mesma', 'gente', 'pessoa', 'pessoas']);
+
+  // --- knowledge recall (FTS5, OR of the longer content words so partial matches still rank) ---
   searchKnowledge(text: string, limit = 3): Array<{ title: string; summary: string; url: string }> {
-    const words = [...new Set(text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .match(/[\p{L}\p{N}]{4,}/gu) || [])].slice(0, 12);
+    const words = [...new Set((text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .match(/[\p{L}\p{N}]{4,}/gu) || []).filter(w => !LearningStorage.STOP.has(w)))].slice(0, 12);
     if (!words.length) return [];
     const q = words.map(w => `"${w.replace(/"/g, '')}"`).join(' OR ');
     try {

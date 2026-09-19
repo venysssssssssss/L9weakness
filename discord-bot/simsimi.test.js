@@ -56,12 +56,18 @@ test('noise never reaches NVIDIA or sends typing', async () => {
 
 test('silence and malformed decisions never become public replies', async () => {
   for (const output of [JSON.stringify({action: 'silence', reason: 'no_value'}), 'internal analysis',
-    answer('oi', { tone: 'hostile' }), answer('', {}), answer('oi', {reason: 'invented'})]) {
+    answer('', {}), JSON.stringify({ action: 'think', text: 'oi' }), JSON.stringify({ action: 'reply', text: ['oi'] })]) {
     const h = harness(async () => output);
     await h.run(h.message('simsimi, tudo bem?'));
     assert.equal(h.sent.length, 0, output);
     assert.equal(h.typing.length, 0);
   }
+});
+
+test('unknown cosmetic labels are normalized instead of dropping the reply', async () => {
+  const h = harness(async () => answer('  Beleza!  ', { tone: 'hostile', depth: 'huge', reason: 'invented' }));
+  await h.run(h.message('simsimi, oi'));
+  assert.equal(h.sent[0].content, 'Beleza!');
 });
 
 test('reply contains only final text and disables mentions', async () => {

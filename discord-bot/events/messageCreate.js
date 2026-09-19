@@ -28,16 +28,22 @@ function pause(session) {
     session.revision++;
 }
 
+// Cosmetic fields (reason/tone/depth) are normalized, not enforced: a good reply must not die over a label.
+// Returns the decision or { error } so the log says why a turn produced nothing.
 function decision(raw) {
     const value = extractJson(raw);
-    if (!value || !reasons.includes(value.reason)) return null;
+    if (!value || typeof value !== 'object') return { error: 'no_json' };
+    if (!reasons.includes(value.reason)) value.reason = value.action === 'silence' ? 'no_value' : 'addressed';
     if (value.action === 'silence') return value;
     if (value.action === 'search') {
-        return typeof value.query === 'string' && value.query.trim().length >= 2 && value.query.length <= 200 ? value : null;
+        return typeof value.query === 'string' && value.query.trim().length >= 2 && value.query.length <= 200
+            ? value : { error: 'query' };
     }
-    if (value.action !== 'reply' || !['neutral', 'warm', 'playful'].includes(value.tone)
-        || !['short', 'medium', 'deep'].includes(value.depth)
-        || typeof value.text !== 'string' || !value.text.trim() || value.text.length > 1900) return null;
+    if (value.action !== 'reply') return { error: `action:${String(value.action).slice(0, 20)}` };
+    if (typeof value.text !== 'string' || !value.text.trim()) return { error: 'text' };
+    if (!['neutral', 'warm', 'playful'].includes(value.tone)) value.tone = 'neutral';
+    if (!['short', 'medium', 'deep'].includes(value.depth)) value.depth = 'short';
+    value.text = value.text.trim().slice(0, 1900);
     if (typeof value.note !== 'string' || !value.note.trim() || value.note.length > 300) delete value.note;
     return value;
 }
@@ -96,7 +102,7 @@ async function drain(channelId) {
                     max_tokens: 3000,
                 });
                 let result = decision(await ask({}));
-                if (result?.action === 'search') {
+                if (result.action === 'search') {
                     if (!valid()) { log(channelId, 'obsolete'); continue; }
                     log(channelId, `search:${result.reason}`);
                     const query = result.query.trim();
@@ -104,10 +110,10 @@ async function drain(channelId) {
                     const search_results = await webSearch(query);
                     if (!valid()) { log(channelId, 'obsolete'); continue; }
                     result = decision(await ask({ searched: query, search_results }));
-                    if (result?.action === 'search') result = null;
+                    if (result.action === 'search') result = { error: 'second_search' };
                 }
                 if (!valid()) { log(channelId, 'obsolete'); continue; }
-                if (!result) { log(channelId, 'invalid_decision'); continue; }
+                if (result.error) { log(channelId, `invalid_decision:${result.error}`); continue; }
                 log(channelId, `${result.action}:${result.reason}`);
                 if (result.action === 'silence') {
                     if (result.reason === 'stop') pause(session);
@@ -115,7 +121,7 @@ async function drain(channelId) {
                 }
                 try { await turn.message.channel.sendTyping(); } catch { /* Optional indicator. */ }
                 if (!valid()) continue;
-                const text = result.text.trim();
+                const text = result.text;
                 const sent = await turn.message.reply({
                     content: text,
                     allowedMentions: { parse: [], repliedUser: false },
