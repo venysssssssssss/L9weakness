@@ -113,6 +113,14 @@ const commandFolders = fs.readdirSync(foldersPath);
             console.warn('[Bot] Arena falhou ao iniciar:', e.message);
         }
 
+        // === Datas comemorativas do dia (22h America/Sao_Paulo em #general) ===
+        try {
+            const { startDailyDatesScheduler } = await import('./utils/daily/commemorative');
+            startDailyDatesScheduler(client);
+        } catch (e: any) {
+            console.warn('[Bot] Datas comemorativas falharam ao iniciar:', e.message);
+        }
+
         // === Sistema de Aprendizado Autônomo 1h/dia + Vontade Própria ===
         try {
             const { startLearningScheduler } = await import('./utils/learning/scheduler');

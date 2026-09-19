@@ -72,6 +72,14 @@ docker logs L9Weakness --tail 100
 - Medir de novo: `scripts/probe-models.sh [modelo ...]` (roda em kali1, usa a chave do `.env`). Vários ids do catálogo dão 404 para a conta.
 - Checar prompt ao vivo: `npm run build && node dist/test-simsimi-live.js`.
 
+## Datas comemorativas (22h) e imagens
+
+- Todo dia `DAILY_DATES_CRON=0 22 * * *` no fuso `DAILY_DATES_TZ=America/Sao_Paulo` o bot posta em `#general`
+  (`DAILY_DATES_CHANNEL`, ou `DAILY_DATES_CHANNEL_ID`) todas as datas do dia: calendarr.com (ano inteiro, 1 fetch/dia)
+  + Wikipédia PT ("D de mês" → Feriados e eventos cíclicos). `/hoje` mostra a mesma lista na hora.
+- `/imaginar` usa `NVIDIA_IMAGE_MODEL=black-forest-labs/flux.1-dev` em `https://ai.api.nvidia.com/v1/genai/<model>`
+  (único modelo de imagem que responde nesta conta — sdxl*/sd3*/bria/consistory dão 404). Formatos: quadrado, paisagem, retrato.
+
 ## Build
 
 - Prod roda **compilado**: `npm run build` (tsc + `arena/public`) → `node dist/index.js`. `Dockerfile` é multi-stage (imagem ~500 MB, sem ts-node).
@@ -91,6 +99,8 @@ NVIDIA_API_KEY=nvapi-...
 NVIDIA_CHAT_MODELS=nvidia/nemotron-3-ultra-550b-a55b,nvidia/nemotron-3-super-120b-a12b,z-ai/glm-5.3,openai/gpt-oss-20b
 NVIDIA_FAST_MODELS=nvidia/nemotron-3-super-120b-a12b,mistralai/mistral-nemotron,nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b
 NVIDIA_VISION_MODEL=meta/llama-3.2-90b-vision-instruct
+NVIDIA_IMAGE_MODEL=black-forest-labs/flux.1-dev
+DAILY_DATES_CRON=0 22 * * *
 LEARNING_ENABLED=true
 LEARNING_CRON=0 */4 * * *
 LEARNING_DURATION_MIN=10

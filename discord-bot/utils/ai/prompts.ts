@@ -33,4 +33,3 @@ export function buildTimeParserPrompt(userInput: string): string {
   return `Converta o tempo: "${userInput}" para MILISSEGUNDOS. Retorne APENAS o número inteiro. Exemplo: "10 min" -> 600000. Se não entender, retorne 3600000.`;
 }
 
-export const IMAGINAR_NEGATIVE_PROMPT = 'blurry, distorted, low quality, deformed, ugly';

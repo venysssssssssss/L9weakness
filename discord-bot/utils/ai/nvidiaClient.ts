@@ -12,14 +12,9 @@ interface ChatCompletionResponse {
   error?: any;
 }
 
-interface ImageGenerationResponse {
-  data: Array<{ b64_json?: string; url?: string }>;
-  error?: any;
-}
-
 async function fetchWithAuth(path: string, body: any, timeoutMs = 30000): Promise<any> {
   const cfg = getConfig();
-  const url = `${cfg.baseUrl}${path}`;
+  const url = path.startsWith('http') ? path : `${cfg.baseUrl}${path}`;
   const key = assertApiKey();
 
   const controller = new AbortController();
@@ -154,52 +149,31 @@ export async function vision(prompt: string, imageBase64: string, mimeType: stri
   }
 }
 
-export async function generateImage(prompt: string, opts?: { negative_prompt?: string; width?: number; height?: number; seed?: number; steps?: number }): Promise<Buffer> {
+// NVIDIA genai image endpoint (ai.api.nvidia.com/v1/genai/<model>). Probed 2026-09-19: only
+// black-forest-labs/flux.1-dev answers for this account (5-7s, JPEG); sdxl*/sd3*/bria/consistory are 404.
+export async function generateImage(prompt: string, opts?: { width?: number; height?: number; seed?: number; steps?: number }): Promise<Buffer> {
   const cfg = getConfig();
   const { width, height } = opts?.width && opts?.height ? { width: opts.width, height: opts.height } : getImageDimensions();
-  const model = cfg.imageModel;
-  const negative_prompt = opts?.negative_prompt;
-
-  // NVIDIA SDXL via /v1/images/generations is not standard; try OpenAI-like first,
-  // fallback to NVIDIA's SDXL endpoint structure if needed.
-  // Primary: OpenAI images/generations
-  const body: any = {
-    model,
+  const body = {
     prompt,
-    n: 1,
-    size: `${width}x${height}`,
-    response_format: 'b64_json',
+    mode: 'base',
+    cfg_scale: 3.5,
+    width,
+    height,
+    seed: opts?.seed ?? Math.floor(Math.random() * 1_000_000),
+    steps: opts?.steps ?? 28,
   };
-  if (negative_prompt) body.negative_prompt = negative_prompt;
-  if (opts?.seed !== undefined) body.seed = opts.seed;
-  if (opts?.steps) body.steps = opts.steps;
-
   let attempt = 0;
   while (true) {
     try {
-      // Try /images/generations (OpenAI compat)
-      const json: ImageGenerationResponse = await fetchWithAuth('/images/generations', body, 60000);
-      const b64 = json.data?.[0]?.b64_json;
-      if (b64) return Buffer.from(b64, 'base64');
-      // Some NVIDIA deployments return url instead
-      const url = json.data?.[0]?.url;
-      if (url) {
-        if (url.startsWith('data:')) {
-          const base64 = url.split(',')[1];
-          return Buffer.from(base64, 'base64');
-        }
-        // fetch remote url
-        const res = await fetch(url);
-        const buf = Buffer.from(await res.arrayBuffer());
-        return buf;
-      }
-      throw new Error('Resposta de imagem vazia (NVIDIA)');
+      const json: any = await fetchWithAuth(`${cfg.imageBaseUrl}/${cfg.imageModel}`, body, 120000);
+      const b64 = json?.artifacts?.[0]?.base64 || json?.image || json?.data?.[0]?.b64_json;
+      if (!b64) throw new Error('Resposta de imagem vazia (NVIDIA)');
+      return Buffer.from(b64, 'base64');
     } catch (e: any) {
       attempt++;
-      // If 404 on this endpoint, try alternative NVIDIA SDXL path: /v1/genai/stabilityai/sdxl-turbo or bare model invoke
-      // But most integrations use same endpoint, so just retry once on 429
       if (e.status === 429 && attempt === 1) {
-        console.warn(`[NVIDIA Image] 429, retry em 3s (model=${model})`);
+        console.warn(`[NVIDIA Image] 429, retry em 3s (model=${cfg.imageModel})`);
         await new Promise(r => setTimeout(r, 3000));
         continue;
       }

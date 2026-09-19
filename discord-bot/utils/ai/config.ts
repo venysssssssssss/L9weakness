@@ -9,6 +9,7 @@ export interface NvidiaConfig {
   fastModels: string[]; // cheap chain for learning/summaries
   visionModel: string;
   imageModel: string;
+  imageBaseUrl: string; // NVIDIA genai endpoint root
   imageSize: string; // e.g. "1024x1024"
   visionCooldownSec: number;
   visionDailyLimit: number;
@@ -32,7 +33,8 @@ export function getConfig(): NvidiaConfig {
     chatModels: csv(process.env.NVIDIA_CHAT_MODELS, DEFAULT_CHAT),
     fastModels: csv(process.env.NVIDIA_FAST_MODELS, DEFAULT_FAST),
     visionModel: process.env.NVIDIA_VISION_MODEL || 'meta/llama-3.2-90b-vision-instruct',
-    imageModel: process.env.NVIDIA_IMAGE_MODEL || 'stabilityai/sdxl-turbo',
+    imageModel: process.env.NVIDIA_IMAGE_MODEL || 'black-forest-labs/flux.1-dev',
+    imageBaseUrl: (process.env.NVIDIA_IMAGE_BASE_URL || 'https://ai.api.nvidia.com/v1/genai').replace(/\/$/, ''),
     imageSize: process.env.NVIDIA_IMAGE_SIZE || '1024x1024',
     visionCooldownSec: parseInt(process.env.VISION_COOLDOWN_SEC || '45', 10),
     visionDailyLimit: parseInt(process.env.VISION_DAILY_LIMIT || '20', 10),
