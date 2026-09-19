@@ -127,5 +127,5 @@ pedir outra busca; `deep` = estruturado, ≤ 1900 chars; `note` só p/ fato dur�
 | moonshotai/kimi-k3, deepseek-v4-flash, glm-5.3-flash | timeout 60 s | | |
 | mistral-large-2, nemotron-nano-3, llama-3.1-nemotron-70b/ultra-253b, kimi-k2.6, gemma-3-12b | 404 p/ conta | | |
 
-Cadeias: CHAT = ultra-550b → super-120b → glm-5.3 → gpt-oss-20b; FAST = mistral-nemotron → super-120b → lightning-30b → gpt-oss-20b.
+Cadeias: CHAT = ultra-550b → super-120b → glm-5.3 → gpt-oss-20b; FAST = super-120b → mistral-nemotron → lightning-30b → gpt-oss-20b (mistral-nemotron abortou em 60 s com input de 3,5k chars no slot de teste em prod; super-120b primeiro).
 Prompt validado ao vivo (`dist/test-simsimi-live.js`): oi solto → reply; fato recente → search; conversa de terceiros → silence; knowledge → "eu li que…" + note; pedido deep → estruturado.

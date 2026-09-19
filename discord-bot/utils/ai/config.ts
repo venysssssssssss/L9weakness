@@ -19,7 +19,7 @@ export interface NvidiaConfig {
 // Chains measured 2026-09-19 with scripts/probe-models.sh (JSON PT-BR, p50): ultra-550b 1.6s, super-120b 3.0s,
 // mistral-nemotron 1.2s, glm-5.3 21s, gpt-oss-20b 18s. kimi-k3/deepseek-v4-flash timed out; several ids 404 for this account.
 const DEFAULT_CHAT = 'nvidia/nemotron-3-ultra-550b-a55b,nvidia/nemotron-3-super-120b-a12b,z-ai/glm-5.3,openai/gpt-oss-20b';
-const DEFAULT_FAST = 'mistralai/mistral-nemotron,nvidia/nemotron-3-super-120b-a12b,nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b';
+const DEFAULT_FAST = 'nvidia/nemotron-3-super-120b-a12b,mistralai/mistral-nemotron,nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b';
 const csv = (v: string | undefined, fallback: string): string[] =>
   (v || fallback).split(',').map(m => m.trim()).filter(Boolean);
 

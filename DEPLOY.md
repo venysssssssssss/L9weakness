@@ -89,7 +89,7 @@ docker logs L9Weakness --tail 100
 ```env
 NVIDIA_API_KEY=nvapi-...
 NVIDIA_CHAT_MODELS=nvidia/nemotron-3-ultra-550b-a55b,nvidia/nemotron-3-super-120b-a12b,z-ai/glm-5.3,openai/gpt-oss-20b
-NVIDIA_FAST_MODELS=mistralai/mistral-nemotron,nvidia/nemotron-3-super-120b-a12b,nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b
+NVIDIA_FAST_MODELS=nvidia/nemotron-3-super-120b-a12b,mistralai/mistral-nemotron,nvidia/nemotron-3.5-lightning-30b-a3b,openai/gpt-oss-20b
 NVIDIA_VISION_MODEL=meta/llama-3.2-90b-vision-instruct
 LEARNING_ENABLED=true
 LEARNING_CRON=0 */4 * * *
