@@ -3,13 +3,13 @@ const { getConfig } = require('../../utils/ai/config');
 const { generateImage } = require('../../utils/ai/nvidiaClient');
 const { imageLimiter } = require('../../utils/ai/rateLimiter');
 
-// FLUX.1-dev accepts multiples of 16 up to ~1.4 MP; these three cover the useful cases.
+// FLUX accepts multiples of 16 up to ~1.4 MP; these three cover the useful cases.
 const SIZES = { quadrado: [1024, 1024], paisagem: [1344, 768], retrato: [768, 1344] };
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('imaginar')
-		.setDescription('Gera uma imagem com FLUX.1-dev (NVIDIA Build)')
+		.setDescription('Gera uma imagem com FLUX.2 (NVIDIA Build)')
 		.addStringOption(option =>
 			option.setName('descricao')
 				.setDescription('Descreva o que você quer ver (ex: Gato astronauta em Marte, cinematográfico)')
@@ -52,7 +52,7 @@ module.exports = {
 
 			const attachment = new AttachmentBuilder(buffer, { name: 'arte_nvidia.jpg' });
 			const embed = new EmbedBuilder()
-				.setTitle('🎨 Estúdio NVIDIA • FLUX.1-dev')
+				.setTitle('🎨 Estúdio NVIDIA • FLUX')
 				.setDescription(`**Tema:** *"${prompt}"*\n**Modelo:** \`${cfg.imageModel}\` • **${width}x${height}**`)
 				.setImage('attachment://arte_nvidia.jpg')
 				.setColor(0x76B900)

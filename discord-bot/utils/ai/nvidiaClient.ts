@@ -149,37 +149,34 @@ export async function vision(prompt: string, imageBase64: string, mimeType: stri
   }
 }
 
-// NVIDIA genai image endpoint (ai.api.nvidia.com/v1/genai/<model>). Probed 2026-09-19: only
-// black-forest-labs/flux.1-dev answers for this account (5-7s, JPEG); sdxl*/sd3*/bria/consistory are 404.
-export async function generateImage(prompt: string, opts?: { width?: number; height?: number; seed?: number; steps?: number }): Promise<Buffer> {
+// NVIDIA genai image endpoint (ai.api.nvidia.com/v1/genai/<model>). Probed 2026-09-19 on this account:
+// flux.2-klein-4b 2.5-3s, best prompt adherence (renders text), steps<=4, rejects mode/cfg_scale;
+// flux.1-dev 5-7s, needs mode+cfg_scale; schnell/cosmos3 answer 202 (async, unsupported here); sdxl*/sd3*/bria 404.
+function imageBody(model: string, prompt: string, width: number, height: number, seed: number) {
+  const base = { prompt, width, height, seed };
+  return /flux\.1/.test(model) ? { ...base, mode: 'base', cfg_scale: 3.5, steps: 28 } : { ...base, steps: 4 };
+}
+
+export async function generateImage(prompt: string, opts?: { width?: number; height?: number; seed?: number }): Promise<Buffer> {
   const cfg = getConfig();
   const { width, height } = opts?.width && opts?.height ? { width: opts.width, height: opts.height } : getImageDimensions();
-  const body = {
-    prompt,
-    mode: 'base',
-    cfg_scale: 3.5,
-    width,
-    height,
-    seed: opts?.seed ?? Math.floor(Math.random() * 1_000_000),
-    steps: opts?.steps ?? 28,
-  };
-  let attempt = 0;
-  while (true) {
+  const seed = opts?.seed ?? Math.floor(Math.random() * 1_000_000);
+  let lastError: any;
+  for (let i = 0; i < cfg.imageModels.length; i++) {
+    const model = cfg.imageModels[i];
     try {
-      const json: any = await fetchWithAuth(`${cfg.imageBaseUrl}/${cfg.imageModel}`, body, 120000);
+      const json: any = await fetchWithAuth(`${cfg.imageBaseUrl}/${model}`, imageBody(model, prompt, width, height, seed), 120000);
       const b64 = json?.artifacts?.[0]?.base64 || json?.image || json?.data?.[0]?.b64_json;
       if (!b64) throw new Error('Resposta de imagem vazia (NVIDIA)');
       return Buffer.from(b64, 'base64');
     } catch (e: any) {
-      attempt++;
-      if (e.status === 429 && attempt === 1) {
-        console.warn(`[NVIDIA Image] 429, retry em 3s (model=${cfg.imageModel})`);
-        await new Promise(r => setTimeout(r, 3000));
-        continue;
-      }
-      throw e;
+      lastError = e;
+      const next = cfg.imageModels[i + 1];
+      if (!next || isAuthError(e)) throw e;
+      console.warn(`[NVIDIA Image] fallback ${model} -> ${next}: ${String(e.message).slice(0, 80)}`);
     }
   }
+  throw lastError;
 }
 
 export async function ping(): Promise<number> {
